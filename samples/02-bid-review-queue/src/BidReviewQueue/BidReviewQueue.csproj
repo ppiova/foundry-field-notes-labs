@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- Lets infra/Deploy-Labs.ps1 publish a self-contained linux-x64 build with a locked restore. -->
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components" Version="5.0.0" />
+    <PackageReference Include="Microsoft.FluentUI.AspNetCore.Components.Icons" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Remove="Data/*.json" />
+    <EmbeddedResource Include="Data/*.json" LogicalName="%(Filename)%(Extension)" />
+    <!-- Real Microsoft-Decision-1 responses recorded on 2026-10-14, served by the recorded engine without Azure. -->
+    <EmbeddedResource Include="Data/recordings/*.jsonl" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

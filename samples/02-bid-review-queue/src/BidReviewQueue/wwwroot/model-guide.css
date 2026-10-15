@@ -1,0 +1,15 @@
+:root { color-scheme: light dark; }
+body { margin: 0; font: 1rem/1.65 system-ui, sans-serif; background: Canvas; color: CanvasText; }
+main { max-width: 78ch; margin: auto; padding: 2rem 1.25rem 4rem; }
+nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; border-bottom: 1px solid GrayText; padding-bottom: 1rem; }
+nav span, .source-note { font-size: .85rem; }
+h1, h2, h3 { line-height: 1.25; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); }
+h2 { margin-top: 2.5rem; }
+a { color: LinkText; overflow-wrap: anywhere; }
+a:focus-visible { outline: 2px solid Highlight; outline-offset: 3px; }
+pre { padding: 1rem; border: 1px solid GrayText; border-radius: .4rem; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; }
+code { overflow-wrap: anywhere; }
+table { width: 100%; border-collapse: collapse; margin-block: 1rem; font-size: .9rem; }
+th, td { text-align: left; vertical-align: top; border-bottom: 1px solid GrayText; padding: .6rem; overflow-wrap: anywhere; }
+@media (max-width: 480px) { main { padding-inline: 1rem; } th, td { padding: .4rem; } }

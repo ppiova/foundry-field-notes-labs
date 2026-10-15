@@ -1,0 +1,645 @@
+@page "/"
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@using System.Collections.Concurrent
+@using System.Diagnostics
+@using System.Text.Json
+@using System.Text.Json.Nodes
+@inject DecisionService Decisions
+@inject IJSRuntime JS
+
+<section class="hero">
+    <div>
+        <p class="eyebrow">Lab 002 · Bounded decisions with Microsoft Foundry</p>
+        <h1>Bid Review Queue</h1>
+        <p class="lead">Foundry serves the models. Our application turns their choices and probabilities into a review policy. Start with one uncertain bid item, then explore the full queue.</p>
+    </div>
+    <div class="hero-badges">
+        <FluentBadge Appearance="BadgeAppearance.Filled" Color="BadgeColor.Brand" Content="Microsoft-Decision-1 · preview" />
+        <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Brand" Content="@($"{Decisions.SecondModelName(mode)} · second opinion")" />
+        <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Brand" Content="Microsoft Foundry" />
+        <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Informative" Content=".NET 11 RC1" />
+        <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Informative" Content="Fluent UI Blazor 5" />
+    </div>
+</section>
+
+<section class="boundary" aria-label="Foundry and application responsibilities">
+    <ol>
+        <li><span>Application</span><strong>Input and allowed options</strong></li>
+        <li><span>Microsoft Foundry</span><strong>Microsoft-Decision-1 inference</strong></li>
+        <li><span>Application</span><strong>Validate and apply policy</strong></li>
+        <li><span>Microsoft Foundry, when requested</span><strong>Second-model inference</strong></li>
+        <li><span>Application and person</span><strong>Compare, review, export</strong></li>
+    </ol>
+    <p class="help">This is the live architecture, not a progress indicator. Recorded mode replays saved responses instead of calling Foundry. App Service can host the application; it does not serve the models.</p>
+</section>
+
+<p class="help guide-link"><a href="/model-guide.html" target="_blank" rel="noopener">Open the Foundry model walkthrough</a> · Follow the request, recorded probabilities, and application policy without leaving this app.</p>
+
+<FluentCard Class="launch-panel">
+    <div class="panel-head"><span class="step">1</span><h2>Choose the mode and run</h2></div>
+    <div class="launch-grid">
+        <div>
+            <FluentSelect TOption="Engine" TValue="string" Label="Engine for the next run" Items="engines" Width="100%" Disabled="running"
+                          OptionValue="@(e => e.Value)" OptionText="@(e => e.Text)" OptionDisabled="@(e => e.Disabled)"
+                          @bind-Value="mode" />
+            <p class="help">@ModeHelp</p>
+        </div>
+        <div class="start-action">
+            <FluentButton Appearance="ButtonAppearance.Primary" IconStart="@(new Icons.Regular.Size20.Play())" Loading="running" OnClick="DecideAllAsync" Class="run">Decide every pay item</FluentButton>
+            @if (ReferenceEquals(form, DataSets.Demo))
+            {
+                <p class="help">Run the 35 synthetic items, then <a href="#guided-case">inspect item 13</a>: what kind of sewer work is bypass pumping?</p>
+            }
+        </div>
+    </div>
+    <p class="help">Second opinion for the next run: @(escalate && Decisions.SecondOpinionAvailable(mode) ? $"on, using {Decisions.SecondModelName(mode)} for eligible lines" : "off"). @(mode == "replay" ? "Both models' answers are recorded; no new inference." : "Enabled second opinions make additional billed Foundry requests.")</p>
+    <details class="policy-controls">
+        <summary>Policy and optional experiments · threshold @Format.Probability(threshold)</summary>
+        <div class="controls">
+            <FluentSlider TValue="int" Label="@($"Accept automatically at {Format.Probability(threshold)}")" Min="50" Max="99" Width="100%"
+                          @bind-Value="thresholdPercent" />
+            <FluentSwitch Label="@($"Ask {Decisions.SecondModelName(mode)} when Microsoft-Decision-1 is unsure")" Value="@(escalate && Decisions.SecondOpinionAvailable(mode))"
+                          ValueChanged="@((bool on) => OnEscalationChanged(on))" Disabled="@(running || !Decisions.SecondOpinionAvailable(mode))" />
+            <p class="help">@EscalationHelp</p>
+            <FluentSwitch Label="Reverse every option list (order robustness check)" @bind-Value="reverse" Disabled="running" />
+            <p class="help">Moving the threshold reuses existing answers. Additional second opinions require an explicit request. Changing the engine selects the next run; it does not relabel displayed results.</p>
+        </div>
+    </details>
+    @if (running && run is not null)
+    {
+        @if (run.AskTotal > 0)
+        {
+            <p class="help">@(run.Mode == "replay" ? "Reading recorded second opinions" : $"Asking {run.SecondModel}") for @run.AskTotal line@(run.AskTotal == 1 ? "" : "s") below the threshold…</p>
+            <FluentProgressBar Min="0" Max="@run.AskTotal" Value="@run.AskDone" Width="100%" />
+        }
+        else
+        {
+            <FluentProgressBar Min="0" Max="@form.Items.Count" Value="@(run.Results.Count + run.Errors.Count)" Width="100%" />
+        }
+    }
+    @if (error is not null)
+    {
+        <FluentMessageBar Intent="MessageBarIntent.Error" Title="Could not decide" AllowDismiss="false">@error</FluentMessageBar>
+    }
+</FluentCard>
+
+<details class="experiments">
+    <summary>Learning experiments: predict, inspect, challenge</summary>
+    <div class="idea-grid experiments">
+        <FluentCard Class="idea"><h3>1. Change the rule</h3><p>Run once at 90%, then lower the threshold to 60%. Predict how many items will need review. The slider reuses existing results; it makes no model calls.</p></FluentCard>
+        <FluentCard Class="idea"><h3>2. Ask a second model</h3><p>With the second opinion on, lines below the threshold go to a general model. When both models choose the same answers, the line is accepted by agreement. Find the line where they disagree.</p></FluentCard>
+        <FluentCard Class="idea"><h3>3. Challenge an answer</h3><p>Open an accepted line and change an answer to Unclear. It must return to review. Only your explicit approval can approve the edited line.</p></FluentCard>
+        <FluentCard Class="idea"><h3>4. Test option order</h3><p>Reverse the options and run again. Compare changed answers from these two runs. Live mode makes new, billable requests; one comparison does not prove robustness.</p></FluentCard>
+    </div>
+</details>
+
+<div class="workspace">
+    <FluentCard Class="panel">
+        <details class="dataset">
+        <summary>Full bid form · @form.Items.Count pay items · load your own JSON</summary>
+        <div class="panel-head">
+            <h2>Bid form</h2>
+            <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Subtle" Content="@formTag" />
+        </div>
+        <p class="form-title">@form.Title</p>
+        <p class="muted">@form.Note</p>
+        <div class="stats">
+            <span>@form.Items.Count pay items</span>
+            <span>Engineer's estimate @Format.Usd(form.Items.Sum(i => i.Amount))</span>
+        </div>
+        <div class="grid-wrap">
+            <FluentDataGrid TGridItem="BidItem" Items="@form.Items.AsQueryable()" ItemKey="@(i => i.Number)" MultiLine="true"
+                            GridTemplateColumns="56px minmax(0,1fr) auto 108px">
+                <PropertyColumn Property="@(i => i.Number)" Title="#" />
+                <TemplateColumn Title="Pay item">
+                    <span class="desc">@context.Description</span>
+                    <span class="sub">@context.Unit · @Format.Quantity(context.Quantity) × @Format.Cents(context.UnitPrice)</span>
+                </TemplateColumn>
+                <TemplateColumn Title="Amount" Align="DataGridCellAlignment.End"><span class="amount">@Format.Usd(context.Amount)</span></TemplateColumn>
+                <TemplateColumn Title="Status">
+                    @{ var state = StateOf(context); }
+                    <FluentBadge Appearance="BadgeAppearance.Tint" Color="@StateColor(state)" Content="@state" />
+                </TemplateColumn>
+            </FluentDataGrid>
+        </div>
+        <div class="controls">
+            <div class="file">
+                <label for="bidFile">Load your own bid form (JSON)</label>
+                <InputFile id="bidFile" accept=".json,application/json" OnChange="LoadFileAsync" disabled="@running" />
+            </div>
+        </div>
+        </details>
+    </FluentCard>
+
+    <section class="queue" aria-live="polite">
+        @{
+            var lines = Lines();
+            var queue = lines.Where(l => l.Settlement.Route == LineRoute.Person).OrderByDescending(l => l.Review.PriorityScore).ThenByDescending(l => l.Review.Amount).ToList();
+            var byRule = lines.Where(l => l.Settlement.Route == LineRoute.Rule).OrderByDescending(l => l.Review.Amount).ToList();
+            var byAgreement = lines.Where(l => l.Settlement.Route == LineRoute.Agreement).OrderByDescending(l => l.Review.Amount).ToList();
+            var open = queue.Where(l => !approvals.ContainsKey(l.Item.Number)).ToList();
+            List<BidItem> failed = run is null ? [] : form.Items.Where(i => run.Errors.ContainsKey(i.Number)).ToList();
+            var missing = run is null || running || !Escalating(run) ? 0 : NeedsSecondOpinion(run).Count;
+            var guidedLine = ReferenceEquals(form, DataSets.Demo) ? lines.FirstOrDefault(l => l.Item.Number == "13") : null;
+        }
+        <div class="metrics">
+            <FluentCard Class="metric"><span class="metric-label">Decided</span><span class="metric-value">@lines.Count / @form.Items.Count</span></FluentCard>
+            <FluentCard Class="metric"><span class="metric-label">Accepted by rule</span><span class="metric-value">@(run is null ? "—" : byRule.Count.ToString())</span></FluentCard>
+            <FluentCard Class="metric"><span class="metric-label">Accepted by agreement</span><span class="metric-value">@(run is null ? "—" : byAgreement.Count.ToString())</span></FluentCard>
+            <FluentCard Class="metric"><span class="metric-label">Awaiting review</span><span class="metric-value">@(run is null ? "—" : open.Count.ToString())</span></FluentCard>
+        </div>
+        <p class="help">Accepted means accepted by this demo's policy, not proven correct.@(lines.Count == 0 ? "" : $" {byRule.Count + byAgreement.Count} · {Math.Round(100.0 * (byRule.Count + byAgreement.Count) / lines.Count)}% accepted; {queue.Count - open.Count} approved locally.")</p>
+        <details class="operational-details">
+            <summary>Operational details: amount, latency, and estimated cost</summary>
+            <div class="metrics">
+            <FluentCard Class="metric"><span class="metric-label">Amount in review</span><span class="metric-value">@(run is null ? "—" : Format.Usd(open.Sum(l => l.Review.Amount)))</span></FluentCard>
+            <FluentCard Class="metric">
+                <span class="metric-label">Median latency@(run?.Mode == "replay" ? " (recorded)" : "")</span>
+                <span class="metric-value">@LatencyText(lines)</span>
+                @if (SecondLatencyText() is { } secondLatency)
+                {
+                    <span class="metric-sub">@secondLatency</span>
+                }
+            </FluentCard>
+            <FluentCard Class="metric">
+                <span class="metric-label">@(run?.Mode == "replay" ? "Estimated cost when recorded" : "Estimated cost")</span>
+                <span class="metric-value">@CostText(lines)</span>
+                @if (run is not null)
+                {
+                    <span class="metric-sub">@TokenText(lines)</span>
+                }
+            </FluentCard>
+            </div>
+            <p class="help">Amount in review is the value of unapproved lines, not expected loss. Priority scores only order the queue. @(run is null ? "" : run.Mode == "replay" ? "Recorded latency and cost describe the earlier model runs, not this replay." : "Latency was measured in this run, and cost is estimated from the tokens it used at list prices.")</p>
+        </details>
+
+        @if (ReferenceEquals(form, DataSets.Demo))
+        {
+            <section id="guided-case" class="guided-case" aria-label="Guided case: item 13" tabindex="-1">
+                <h2>Start with one decision: item 13</h2>
+                <p>Sanitary Sewer Bypass Pumping, Complete. Predict which system fits before reading the answer. The input describes work; our code defines the allowed choices.</p>
+                @if (guidedLine is not null)
+                {
+                    <p class="help">Actual result from this @(guidedLine.Outcome.Mode == "replay" ? "recorded" : "live") run. Inspect the selected probability, application rule, and any second opinion below. The full queue includes this item's outcome in its totals.</p>
+                    <LineCard Item="guidedLine.Item" Outcome="guidedLine.Outcome" Review="guidedLine.Review" Settlement="guidedLine.Settlement"
+                              Opinion="guidedLine.Opinion" SecondModel="@(run!.SecondModel)" SecondOpinionError="@guidedLine.OpinionError" Asking="@guidedLine.Asking"
+                              Edits="@edits.GetValueOrDefault(guidedLine.Item.Number)" ApprovedAt="@(approvals.TryGetValue(guidedLine.Item.Number, out var guidedAt) ? guidedAt : null)"
+                              OnEdit="OnEdit" OnApprove="OnApprove" />
+                }
+                else if (run is not null && run.Errors.TryGetValue("13", out var guidedError))
+                {
+                    <FluentMessageBar Intent="MessageBarIntent.Error" Title="Item 13 failed" AllowDismiss="false">@guidedError</FluentMessageBar>
+                }
+                else
+                {
+                    <p class="help">Choose Decide every pay item above. No result is shown until it is returned and validated. A failed request remains a failure.</p>
+                }
+            </section>
+        }
+
+        @if (run is null)
+        {
+            <FluentCard Class="empty">
+                <h2>Review where the money is</h2>
+                <p>Review priority = line amount × (1 − weakest selected-answer probability). This heuristic helps order the queue; it is not an estimate of financial loss or the probability that the whole line is wrong.</p>
+                <p>Below the threshold, a second model can answer the same closed questions. Two models choosing the same answers is evidence, not proof: measure it on labeled data before you rely on it.</p>
+                <p class="flow">Bid form → Microsoft-Decision-1 → second opinion when unsure → Review</p>
+            </FluentCard>
+        }
+        else
+        {
+            <p class="run-summary">@RunSummary(lines.Count)</p>
+            @if (run.Mode == "replay")
+            {
+                <FluentMessageBar Intent="MessageBarIntent.Info" Title="Recorded run" AllowDismiss="false">Real model answers from earlier live runs: @(Decisions.Replay.Summary)@(Escalating(run) && Decisions.SecondOpinionReplay is { } recorded ? $"; {recorded.Summary}" : ""). No new requests were made, and latency is the latency measured when recorded.</FluentMessageBar>
+            }
+            @if (orderCheck is not null)
+            {
+                <FluentMessageBar Intent="MessageBarIntent.Info" Title="Order check" AllowDismiss="false">@orderCheck</FluentMessageBar>
+            }
+            @if (missing > 0)
+            {
+                <FluentMessageBar Intent="MessageBarIntent.Warning" Title="Second opinion needed" AllowDismiss="false">
+                    @missing line@(missing == 1 ? " is" : "s are") below the new threshold without a second opinion, so @(missing == 1 ? "it stays" : "they stay") with a person.
+                    <FluentButton Appearance="ButtonAppearance.Outline" OnClick="AskMissingAsync">Ask @run.SecondModel about @missing line@(missing == 1 ? "" : "s")</FluentButton>
+                </FluentMessageBar>
+            }
+            <div class="list-head">
+                <h2>Needs review</h2>
+                <span>@open.Count open · @(queue.Count - open.Count) approved</span>
+            </div>
+            @if (guidedLine is not null)
+            {
+                <p class="help">Item 13 is shown in the guided case above, not duplicated below. Counts include it.</p>
+            }
+            @foreach (var line in queue.Where(l => l != guidedLine))
+            {
+                <LineCard @key="line.Item.Number" Item="line.Item" Outcome="line.Outcome" Review="line.Review" Settlement="line.Settlement"
+                          Opinion="line.Opinion" SecondModel="@run.SecondModel" SecondOpinionError="@line.OpinionError" Asking="@line.Asking"
+                          Edits="@edits.GetValueOrDefault(line.Item.Number)" ApprovedAt="@(approvals.TryGetValue(line.Item.Number, out var at) ? at : null)"
+                          OnEdit="OnEdit" OnApprove="OnApprove" />
+            }
+            <FluentAccordion Class="accepted">
+                @if (Escalating(run))
+                {
+                    <FluentAccordionItem Header="@($"Accepted by agreement under this demo's policy ({byAgreement.Count})")">
+                        @foreach (var line in byAgreement.Where(l => l != guidedLine))
+                        {
+                            <LineCard @key="line.Item.Number" Item="line.Item" Outcome="line.Outcome" Review="line.Review" Settlement="line.Settlement"
+                                      Opinion="line.Opinion" SecondModel="@run.SecondModel" SecondOpinionError="@line.OpinionError" Asking="@line.Asking"
+                                      Edits="@edits.GetValueOrDefault(line.Item.Number)" ApprovedAt="@(approvals.TryGetValue(line.Item.Number, out var at) ? at : null)"
+                                      OnEdit="OnEdit" OnApprove="OnApprove" />
+                        }
+                    </FluentAccordionItem>
+                }
+                <FluentAccordionItem Header="@($"Accepted by rule under this demo's policy ({byRule.Count})")">
+                    @foreach (var line in byRule.Where(l => l != guidedLine))
+                    {
+                        <LineCard @key="line.Item.Number" Item="line.Item" Outcome="line.Outcome" Review="line.Review" Settlement="line.Settlement"
+                                  Opinion="line.Opinion" SecondModel="@run.SecondModel" SecondOpinionError="@line.OpinionError" Asking="@line.Asking"
+                                  Edits="@edits.GetValueOrDefault(line.Item.Number)" ApprovedAt="@(approvals.TryGetValue(line.Item.Number, out var at) ? at : null)"
+                                  OnEdit="OnEdit" OnApprove="OnApprove" />
+                    }
+                </FluentAccordionItem>
+            </FluentAccordion>
+            @if (failed.Count > 0)
+            {
+                <FluentMessageBar Intent="MessageBarIntent.Error" Title="@($"{failed.Count} pay items failed")" AllowDismiss="false">
+                    <ul class="failed">
+                        @foreach (var item in failed)
+                        {
+                            <li>#@item.Number: @run.Errors[item.Number]</li>
+                        }
+                    </ul>
+                </FluentMessageBar>
+            }
+            <FluentButton Appearance="ButtonAppearance.Outline" IconStart="@(new Icons.Regular.Size20.ArrowDownload())" OnClick="ExportAsync" Disabled="running">Export JSON</FluentButton>
+        }
+    </section>
+</div>
+
+<section class="ideas">
+    <h2>The code builds the options. The models only choose. You review what matters.</h2>
+    <div class="idea-grid">
+        <FluentCard Class="idea"><h3>Validate offered values</h3><p>Sizes, materials and depth bands are spans copied from the description. The application rejects an answer outside the offered options. Selecting the wrong offered value is still possible.</p></FluentCard>
+        <FluentCard Class="idea"><h3>A threshold you can defend</h3><p>Every option gets a probability. Above the threshold, the rule accepts. Below it, a second model must choose the same answers, and an unclear answer always goes to a person.</p></FluentCard>
+        <FluentCard Class="idea"><h3>Make the policy visible</h3><p>The priority score combines amount and uncertainty. Validate it, and agreement between models, on your workload before relying on them. Model probabilities describe original answers, not reviewer edits.</p></FluentCard>
+    </div>
+</section>
+
+<FluentAccordion Class="about">
+    <FluentAccordionItem Header="About this lab">
+        <p>A local educational demo of closed decisions with Microsoft-Decision-1 on a synthetic bid form. It is not an estimating product: it does not price or submit bids or send messages. In live mode, each pay item's number, description and unit go to your Foundry deployments.</p>
+        <p>Both engines show real model answers. <strong>Microsoft-Decision-1</strong> sends each pay item's number, description and unit to your Foundry deployment, using Azure CLI locally or the app's managed identity in Azure; quantities and prices stay in this app. With the second opinion on, lines below the threshold also go to a chat model deployment on the same Foundry resource, through the Responses API with strict structured outputs, so it can only return an offered option. <strong>Recorded run</strong> shows responses recorded from live runs of this demo form on 2026-10-14 and validates them again; it makes no requests and cannot decide new items.</p>
+        <p>Results, edits and approvals are temporary and lost on reload. Export downloads them as JSON. Local execution has no authentication and belongs on localhost. The provided Azure deployment uses App Service authentication with restricted Microsoft Entra sign-in. Use synthetic data.</p>
+    </FluentAccordionItem>
+</FluentAccordion>
+
+@code {
+    const int Parallel = 4, SecondParallel = 8;
+    static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+
+    sealed class Run(string mode, bool reverse, string secondModel)
+    {
+        public string Mode { get; } = mode;
+        public bool Reverse { get; } = reverse;
+        public string SecondModel { get; } = secondModel;
+        public DateTimeOffset StartedAt { get; } = DateTimeOffset.UtcNow;
+        public ConcurrentDictionary<string, DecisionOutcome> Results { get; } = new();
+        public ConcurrentDictionary<string, string> Errors { get; } = new();
+        public ConcurrentDictionary<string, bool> Pending { get; } = new();
+        public ConcurrentDictionary<string, SecondOpinion> Opinions { get; } = new();
+        public ConcurrentDictionary<string, string> OpinionErrors { get; } = new();
+        public ConcurrentDictionary<string, bool> Asking { get; } = new();
+        public int AskTotal { get; set; }
+        public int AskDone;
+        public bool Aborted { get; set; }
+        public double? Seconds { get; set; }
+    }
+
+    record Engine(string Value, string Text, bool Disabled);
+    // Second-opinion evidence travels with every line, whatever its route, so lowering the threshold never hides it.
+    record Line(BidItem Item, DecisionOutcome Outcome, LineReview Review, Settlement Settlement, SecondOpinion? Opinion, string? OpinionError, bool Asking);
+
+    BidForm form = DataSets.Demo;
+    string formTag = "Synthetic data";
+    string mode = "replay";
+    // Whole percentages keep the slider free of 49 step marks; the policy works with the 0-1 value.
+    int thresholdPercent = (int)Math.Round(ReviewPolicy.DefaultThreshold * 100);
+    double threshold => thresholdPercent / 100.0;
+    bool reverse, running, escalate = true;
+    string? error, orderCheck;
+    Run? run, previous;
+    IReadOnlyList<Engine> engines = [];
+    IJSObjectReference? module;
+    readonly Dictionary<string, Dictionary<string, string>> edits = new();
+    readonly Dictionary<string, DateTimeOffset> approvals = new();
+    readonly CancellationTokenSource disposal = new();
+
+    protected override void OnInitialized()
+    {
+        engines =
+        [
+            new("foundry", Decisions.FoundryConfigured ? $"Microsoft-Decision-1 · {Decisions.Settings.Deployment}" : "Microsoft-Decision-1 · not configured", !Decisions.FoundryConfigured),
+            new("replay", "Recorded Microsoft-Decision-1 run", false),
+        ];
+        // Live decisions when a deployment is configured; otherwise the recorded run, which needs no Azure.
+        mode = Decisions.FoundryConfigured ? "foundry" : "replay";
+    }
+
+    string ModeHelp => mode switch
+    {
+        "foundry" => "Sends each pay item's number, description and unit to your Microsoft-Decision-1 deployment. Quantities and prices stay here. Charges apply.",
+        _ => Decisions.FoundryConfigured
+            ? "Real Microsoft-Decision-1 answers recorded from a live run of this demo form, validated again. No requests and no charges; it cannot decide items that were not recorded."
+            : $"Real Microsoft-Decision-1 answers recorded from a live run of this demo form, validated again. No requests and no charges. To decide live: {Decisions.Settings.Problem}",
+    };
+
+    string EscalationHelp => !Decisions.SecondOpinionAvailable(mode)
+        ? $"The second opinion is off for this engine. {Decisions.Escalation.Problem}"
+        : mode == "foundry"
+            ? $"Lines below the threshold also go to your {Decisions.Escalation.ModelName} deployment. Same answers: accepted by agreement. Any difference: a person decides. Charges apply."
+            : $"Recorded {Decisions.SecondModelName(mode)} answers for lines below the threshold. Same answers: accepted by agreement. Any difference: a person decides.";
+
+    bool Escalating(Run current) => escalate && Decisions.SecondOpinionAvailable(current.Mode);
+
+    Line? LineFor(BidItem item)
+    {
+        if (run is null || !run.Results.TryGetValue(item.Number, out var outcome)) return null;
+        var edited = edits.ContainsKey(item.Number);
+        var review = ReviewPolicy.Evaluate(item, outcome.Result, outcome.Questions, threshold, edited);
+        var opinion = run.Opinions.GetValueOrDefault(item.Number);
+        var settlement = Escalating(run)
+            ? EscalationPolicy.Settle(review, outcome.Result, outcome.Questions, threshold, opinion, edited, run.SecondModel)
+            : new Settlement(review.AutoAccept ? LineRoute.Rule : LineRoute.Person, [], null);
+        return Escalating(run)
+            ? new Line(item, outcome, review, settlement, opinion, run.OpinionErrors.GetValueOrDefault(item.Number), run.Asking.ContainsKey(item.Number))
+            : new Line(item, outcome, review, settlement, null, null, false);
+    }
+
+    List<Line> Lines() => form.Items.Select(LineFor).OfType<Line>().ToList();
+
+    /// <summary>Lines below the threshold (the current one by default) that a second opinion could settle and that do not have one yet.</summary>
+    List<(BidItem Item, DecisionOutcome Outcome)> NeedsSecondOpinion(Run current, double? at = null) => form.Items
+        .Where(i => current.Results.ContainsKey(i.Number) && !current.Opinions.ContainsKey(i.Number) && !edits.ContainsKey(i.Number))
+        .Select(i => (Item: i, Outcome: current.Results[i.Number]))
+        .Where(x => EscalationPolicy.Eligible(x.Outcome.Result, x.Outcome.Questions, at ?? threshold))
+        .ToList();
+
+    string StateOf(BidItem item)
+    {
+        if (run is null) return "Pending";
+        if (run.Errors.ContainsKey(item.Number)) return "Failed";
+        if (LineFor(item) is { } line)
+            return approvals.ContainsKey(item.Number) ? "Approved"
+                : run.Asking.ContainsKey(item.Number) ? "Asking"
+                : line.Settlement.Route switch { LineRoute.Rule => "Accepted", LineRoute.Agreement => "Agreed", _ => "Review" };
+        return run.Pending.ContainsKey(item.Number) ? "Deciding" : "Pending";
+    }
+
+    static BadgeColor StateColor(string state) => state switch
+    {
+        "Accepted" or "Agreed" => BadgeColor.Success,
+        "Review" => BadgeColor.Warning,
+        "Approved" => BadgeColor.Brand,
+        "Failed" => BadgeColor.Danger,
+        "Deciding" or "Asking" => BadgeColor.Informative,
+        _ => BadgeColor.Subtle,
+    };
+
+    string LatencyText(List<Line> lines)
+    {
+        if (run is null || lines.Count == 0) return "—";
+
+        var p50 = Scoring.Percentile(lines.Select(l => l.Outcome.Result.ElapsedMs).ToList(), 50);
+        return $"{p50:0} ms";
+    }
+
+    string? SecondLatencyText()
+    {
+        if (run is null || !Escalating(run) || run.Opinions.IsEmpty) return null;
+        var p50 = Scoring.Percentile(run.Opinions.Values.Select(o => o.ElapsedMs).ToList(), 50);
+        return $"{run.SecondModel}: {p50 / 1000:0.0} s for {run.Opinions.Count} line{(run.Opinions.Count == 1 ? "" : "s")}";
+    }
+
+    IReadOnlyList<SecondOpinion> UsedOpinions() => run is not null && Escalating(run) ? run.Opinions.Values.ToList() : [];
+
+    string CostText(List<Line> lines)
+    {
+        if (run is null) return "—";
+
+        var decisionCost = Pricing.Estimate(lines.Sum(l => l.Outcome.Result.InputTokens ?? 0)) ?? 0;
+        var opinions = UsedOpinions();
+        var secondCost = EscalationPricing.Estimate(run.SecondModel, opinions.Sum(o => o.InputTokens ?? 0), opinions.Sum(o => o.OutputTokens ?? 0));
+        return secondCost is null && opinions.Count > 0 ? $"${decisionCost:0.000000} + {run.SecondModel}" : $"${decisionCost + (secondCost ?? 0):0.000000}";
+    }
+
+    string TokenText(List<Line> lines)
+    {
+        var text = $"Microsoft-Decision-1 {lines.Sum(l => l.Outcome.Result.InputTokens ?? 0):N0} in";
+        var opinions = UsedOpinions();
+        return opinions.Count == 0 ? text : $"{text} · {run!.SecondModel} {opinions.Sum(o => o.InputTokens ?? 0):N0} in, {opinions.Sum(o => o.OutputTokens ?? 0):N0} out";
+    }
+
+    string RunSummary(int decided)
+    {
+        var engine = run!.Mode == "foundry" ? "Microsoft-Decision-1" : "recorded run";
+        var time = run.Seconds is { } s ? $" in {s:0.0} s" : "";
+        var second = Escalating(run) ? $" · second opinion from {run.SecondModel} for {run.Opinions.Count} line{(run.Opinions.Count == 1 ? "" : "s")}" : "";
+        return $"{decided} of {form.Items.Count} pay items decided{time} · {engine}{(run.Reverse ? " · options reversed" : "")}{second} · {Parallel} requests at a time · {(run.Mode == "foundry" ? "descriptions sent to your Foundry deployments" : "no new model calls")}";
+    }
+
+    async Task DecideAllAsync()
+    {
+        if (running) return;
+        error = orderCheck = null;
+        if (run is { Aborted: false }) previous = run;
+        var current = run = new Run(mode, reverse, Decisions.SecondModelName(mode));
+        var startThreshold = threshold;
+        edits.Clear();
+        approvals.Clear();
+        running = true;
+        var watch = Stopwatch.StartNew();
+        var pending = new ConcurrentQueue<BidItem>(form.Items);
+
+        async Task Worker()
+        {
+            while (!current.Aborted && pending.TryDequeue(out var item))
+            {
+                current.Pending[item.Number] = true;
+                await InvokeAsync(StateHasChanged);
+                try
+                {
+                    current.Results[item.Number] = await Decisions.DecideAsync(item, current.Mode, current.Reverse, disposal.Token);
+                }
+                catch (DecisionFailure failure)
+                {
+                    current.Errors[item.Number] = failure.Message;
+                    if (failure.StatusCode is StatusCodes.Status400BadRequest or StatusCodes.Status503ServiceUnavailable)
+                    {
+                        current.Aborted = true;
+                        error = failure.Message;
+                    }
+                }
+                catch (OperationCanceledException) when (disposal.IsCancellationRequested) { return; }
+                finally { current.Pending.TryRemove(item.Number, out _); }
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+
+        await Task.WhenAll(Enumerable.Range(0, Parallel).Select(_ => Worker()));
+        // The second model only sees lines the rule could not accept at the threshold set when the run started, or a
+        // lower one chosen since. Lines below a threshold raised during the run wait for the explicit Ask button.
+        if (!current.Aborted && Escalating(current)) await AskSecondModelAsync(current, Math.Min(startThreshold, threshold));
+        current.Seconds = watch.Elapsed.TotalSeconds;
+        running = false;
+        orderCheck = OrderCheck(current);
+    }
+
+    async Task AskMissingAsync()
+    {
+        if (running || run is null) return;
+        running = true;
+        try { await AskSecondModelAsync(run); }
+        finally { running = false; }
+    }
+
+    async Task AskSecondModelAsync(Run current, double? at = null)
+    {
+        var pending = new ConcurrentQueue<(BidItem Item, DecisionOutcome Outcome)>(NeedsSecondOpinion(current, at));
+        current.AskTotal = pending.Count;
+        current.AskDone = 0;
+
+        async Task Worker()
+        {
+            while (pending.TryDequeue(out var next))
+            {
+                var number = next.Item.Number;
+                current.Asking[number] = true;
+                await InvokeAsync(StateHasChanged);
+                try
+                {
+                    current.Opinions[number] = await Decisions.SecondOpinionAsync(next.Item, next.Outcome.Questions, current.Mode, disposal.Token);
+                    current.OpinionErrors.TryRemove(number, out _);
+                }
+                catch (DecisionFailure failure) { current.OpinionErrors[number] = failure.Message; }
+                catch (OperationCanceledException) when (disposal.IsCancellationRequested) { return; }
+                finally
+                {
+                    current.Asking.TryRemove(number, out _);
+                    // New evidence: an approval given before it arrived no longer covers what the card shows.
+                    if (ReferenceEquals(run, current)) approvals.Remove(number);
+                    Interlocked.Increment(ref current.AskDone);
+                }
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+
+        await Task.WhenAll(Enumerable.Range(0, SecondParallel).Select(_ => Worker()));
+        current.AskTotal = 0;
+    }
+
+    string? OrderCheck(Run current)
+    {
+        if (previous is null || previous.Mode != current.Mode || previous.Reverse == current.Reverse) return null;
+        int total = 0, changed = 0;
+        foreach (var (number, outcome) in current.Results)
+        {
+            if (!previous.Results.TryGetValue(number, out var before)) continue;
+            foreach (var question in outcome.Questions)
+            {
+                total++;
+                if (!before.Result.Answers.TryGetValue(question.Name, out var earlier) || earlier.Choice != outcome.Result.Answers[question.Name].Choice) changed++;
+            }
+        }
+        return $"{changed} of {total} answers changed when every option list was {(current.Reverse ? "reversed" : "restored")}.";
+    }
+
+    void OnEdit(LineEdit edit)
+    {
+        if (!edits.TryGetValue(edit.Number, out var changes)) edits[edit.Number] = changes = new();
+        if (edit.Value is null || edit.Value == edit.ModelChoice) changes.Remove(edit.Question);
+        else changes[edit.Question] = edit.Value;
+        if (changes.Count == 0) edits.Remove(edit.Number);
+        approvals.Remove(edit.Number);
+    }
+
+    // Showing or hiding second opinions changes the evidence on those lines, so approvals given before no longer apply.
+    void OnEscalationChanged(bool on)
+    {
+        escalate = on;
+        if (run is null) return;
+        foreach (var number in run.Opinions.Keys.Concat(run.OpinionErrors.Keys)) approvals.Remove(number);
+    }
+
+    void OnApprove(string number)
+    {
+        if (run?.Asking.ContainsKey(number) == true) return;
+        approvals[number] = DateTimeOffset.UtcNow;
+    }
+
+    async Task LoadFileAsync(InputFileChangeEventArgs e)
+    {
+        error = null;
+        try
+        {
+            await using var stream = e.File.OpenReadStream(256 * 1024);
+            using var reader = new StreamReader(stream);
+            form = BidFormReader.Parse(await reader.ReadToEndAsync(), e.File.Name);
+            formTag = "Your file";
+            run = previous = null;
+            orderCheck = null;
+            edits.Clear();
+            approvals.Clear();
+        }
+        catch (IOException) { error = "The file is larger than 256 KB."; }
+        catch (JsonException) { error = "The file is not valid JSON, or a pay item has a field of the wrong type."; }
+        catch (InvalidDataException ex) { error = ex.Message; }
+    }
+
+    async Task ExportAsync()
+    {
+        if (run is null) return;
+        var lines = form.Items.Select(item =>
+        {
+            run.Results.TryGetValue(item.Number, out var outcome);
+            var line = LineFor(item);
+            return new
+            {
+                item,
+                error = run.Errors.GetValueOrDefault(item.Number),
+                modelOutput = outcome is null ? null : new { outcome.Result.Model, outcome.Mode, outcome.Result.ElapsedMs, outcome.Result.InputTokens, outcome.Questions, outcome.Result.Answers },
+                // Every opinion obtained in this run, even when the switch now hides second opinions.
+                secondOpinion = run.Opinions.GetValueOrDefault(item.Number) is { } o ? new { o.Model, o.Choices, o.ElapsedMs, o.InputTokens, o.OutputTokens } : null,
+                secondOpinionError = run.OpinionErrors.GetValueOrDefault(item.Number),
+                review = line?.Review,
+                route = line?.Settlement.Route.ToString().ToLowerInvariant(),
+                differences = line?.Settlement.Differences,
+                reviewerChanges = edits.GetValueOrDefault(item.Number) ?? new Dictionary<string, string>(),
+                approvedAt = approvals.TryGetValue(item.Number, out var at) ? at : (DateTimeOffset?)null,
+            };
+        });
+        var json = JsonSerializer.Serialize(new { exportedAt = DateTimeOffset.UtcNow, bidForm = form.Title, run = new { run.Mode, reverseOptions = run.Reverse, threshold, secondOpinion = Escalating(run) ? run.SecondModel : null, run.StartedAt }, lines }, Json);
+        try
+        {
+            module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/download.js");
+            await module.InvokeVoidAsync("downloadText", $"bid-review-queue-{run.StartedAt:yyyyMMdd-HHmmss}.json", json);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+        {
+            error = "The browser could not save the export. Reload the page and try again.";
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        disposal.Cancel();
+        disposal.Dispose();
+        if (module is not null)
+        {
+            try { await module.DisposeAsync(); }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

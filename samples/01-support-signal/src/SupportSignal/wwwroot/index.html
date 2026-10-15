@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en-US">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Support Signal · Foundry Field Notes</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body>
+<aside class="rail"><a class="brand" href="/" aria-label="Foundry Field Notes">f<span>n</span><i>↗</i></a><div class="vertical">FOUNDRY FIELD NOTES</div><span class="edition">01</span></aside>
+<div class="shell">
+<header><div class="breadcrumb">FIELD NOTES <span>/</span> LAB 001</div><div class="header-right"><span class="dot"></span> <span id="hosting">CONNECTING</span> <button id="aboutButton" class="subtle">About this lab ↗</button></div></header>
+<main>
+<section class="hero"><div><p class="eyebrow">REVIEWABLE PROPOSALS WITH MICROSOFT FOUNDRY</p><h1>Support <em>Signal.</em></h1><p class="intro">Foundry supplies model inference. The application validates the proposal.<br>Start with one outage report, inspect the evidence, and decide what to say.</p></div><div class="stamp"><span>HUMAN</span><b>IN THE LOOP</b><span>ALWAYS.</span></div></section>
+<section class="stackbar"><div><span class="tiny">BUILT WITH</span><b>.NET 11 <span class="tag">RC1</span></b><b>Microsoft Foundry</b><b>Agent Framework <span class="tag">PREVIEW</span></b></div><span>01 / SUPPORT TRIAGE</span></section>
+<p class="help"><a href="/guide.html" target="_blank" rel="noopener">Open the guided lab ↗</a> · Follow the outage case step by step, or read the results without Azure.</p>
+<section class="boundary" aria-label="Foundry and application responsibilities">
+<ol><li><span>APPLICATION</span><strong>Request and instructions</strong></li><li><span id="inferenceOwner">LOCAL SIMULATION</span><strong id="inferenceStep">Deterministic rules, not a model</strong></li><li><span>APPLICATION</span><strong>Structure and evidence checks</strong></li><li><span>PERSON</span><strong>Review, edit, approve</strong></li></ol>
+<p class="help">This describes the selected execution path, not live progress. In Foundry mode, MAF runs in our application; App Service hosts the app, not the model.</p>
+</section>
+<section class="workspace">
+<div class="input-panel panel"><div class="panel-heading"><span class="number">01</span><h2>The request</h2><span class="small">SYNTHETIC DATA</span></div>
+<div class="panel-body">
+<div class="mode-row"><div><label class="label" for="mode">Analysis engine</label><select id="mode"><option value="simulation">Local simulation</option><option value="foundry" disabled>Foundry · not configured</option></select></div><span id="modeTag" class="pill">NO CLOUD USAGE</span></div>
+<p id="modeHelp" class="help">Deterministic rules to explore the workflow. This mode does not use an AI model or run MAF.</p>
+<label class="label">Start with one case</label><div class="scenarios"><button data-scenario="outage" class="scenario active">↯ Service outage</button><button data-scenario="access" class="scenario">⌁ Access</button><button data-scenario="billing" class="scenario">▤ Billing</button><button data-scenario="unknown" class="scenario">? Unclear request</button></div>
+<p class="help">Predict before running: does an outage report prove its cause? The application checks a proposal, not the incident itself.</p>
+<label for="request" class="label">User message</label><textarea id="request" maxlength="6000" spellcheck="false"></textarea><div class="input-caption"><span>Edit this message or write your own synthetic request.</span><span id="count"></span></div>
+<button id="analyze" class="primary" disabled>Analyze request <span>↗</span></button><p id="error" class="error" role="alert" hidden></p>
+</div></div>
+<div class="output-panel panel"><div class="panel-heading"><span class="number">02</span><h2>The proposal</h2><span id="outputState" class="small">WAITING FOR INPUT</span></div>
+<div id="empty" class="empty"><div class="signal-art"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><h3>One signal. One next step.</h3><p>Your analysis will appear here with source evidence<br>and a response for you to review.</p><div class="flow">REQUEST <span>→</span> ANALYSIS <span>→</span> REVIEW</div></div>
+<div id="result" class="panel-body" hidden><div class="result-top"><div><span id="category" class="category"></span><span id="priority" class="priority"></span></div></div><h3 id="summary"></h3><div class="evidence"><span class="label">EVIDENCE FROM THE REQUEST</span><blockquote id="evidence"></blockquote></div>
+<details class="decision-inspector"><summary>Inspect this decision</summary>
+<p id="resultSource" class="help"></p>
+<ol><li><strong>Input.</strong> The requester describes a problem. Their account is untrusted data, not verified incident evidence.</li><li><strong>Application checks.</strong> The proposal has supported labels and bounded text; its evidence appears verbatim in the request.</li><li><strong>Review policy.</strong> Every proposal requires a person. A valid quote and a high priority do not prove a correct interpretation. Editing clears approval.</li></ol>
+<p class="help">These are application checks and rules, not an explanation of the model's reasoning. This lab does not return calibrated probabilities.</p>
+<details><summary>Technical details: input and original response JSON</summary><pre id="originalJson"></pre><p class="help">Original response before review. Export keeps human edits separately.</p></details>
+</details>
+<label class="label" for="nextStep">Next step · editable</label><textarea id="nextStep" rows="2" maxlength="3000"></textarea><label class="label" for="reply">Draft response · editable</label><textarea id="reply" rows="4" maxlength="3000"></textarea><div class="review-note"><span>◎</span><p>This classification is a proposal. Review the content before approving. No messages will be sent.</p></div><div class="actions"><button id="approve" class="primary">Approve proposal <span>✓</span></button><button id="export" class="secondary">Export JSON ↓</button></div><p id="reviewStatus" class="help" aria-live="polite">Awaiting human review.</p></div>
+</div>
+</section>
+<section class="runbar" aria-live="polite"><div><span class="dot"></span><b id="runLabel">Ready for your first analysis</b></div><details><summary>Run details · not a benchmark</summary><p id="timing"></p><p id="runDetail">No runs yet · No messages sent</p></details></section>
+<section class="notes"><div><p class="eyebrow">THE IDEA BEHIND THE LAB</p><h2>The model proposes.<br>The app validates.<br><em>You decide.</em></h2></div><article><span>01 — CONTEXT</span><h3>One small problem, end to end.</h3><p>One request, one classification, and one next step. Follow the path from an incoming message to a reviewable decision.</p></article><article><span>02 — JUDGMENT</span><h3>Evidence before confidence.</h3><p>We validate categories, structure, and whether the evidence appears in the message. This does not guarantee a correct interpretation.</p></article><article><span>03 — FIELD NOTE</span><h3>Experimental by design.</h3><p>.NET 11 RC1 and the Foundry connector are prerelease software. Pinned versions, explicit limitations, and human review.</p></article></section>
+</main><footer><span><b>fn ↗</b> FOUNDRY FIELD NOTES</span><span>Build it. Understand it. Make it reproducible.</span><span>LAB 001 · OCT 2026</span></footer>
+</div>
+<dialog id="about"><button id="closeAbout" class="secondary">Close ×</button><p class="eyebrow">FOUNDRY FIELD NOTES / LAB 001</p><h2>Support Signal</h2><p>An educational demo of request classification and human review. This is not a production support system.</p><p>Simulation uses rules. Foundry mode uses Microsoft Agent Framework with Responses inference and a managed identity in Azure, or Azure CLI for local development. Cloud integration requires configuration and validation with your deployment.</p><p>Results stay in browser memory and are lost on reload. Approval records a local decision only. Export downloads the analysis and edits; it does not send messages.</p><p>The Azure deployment requires restricted Microsoft Entra sign-in. Local development has no application authentication and belongs on localhost. Use synthetic data.</p></dialog>
+</body></html>

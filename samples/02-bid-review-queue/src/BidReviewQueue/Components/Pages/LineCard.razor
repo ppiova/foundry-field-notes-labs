@@ -1,0 +1,210 @@
+@using System.Globalization
+
+<FluentCard Class="@(ApprovedAt is null ? "line" : "line approved")">
+    <div class="line-top">
+        <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Informative" Content="@($"#{Item.Number}")" />
+        <h3>@Item.Description</h3>
+        <div class="money">
+            <strong>@Format.Usd(Review.Amount)</strong>
+            @if (Settlement.Route == LineRoute.Person)
+            {
+                <span class="risk">Priority score @Review.PriorityScore.ToString("N0", CultureInfo.GetCultureInfo("en-US"))</span>
+            }
+        </div>
+    </div>
+    <p class="meta">@Item.Unit · @Format.Quantity(Item.Quantity) × @Format.Cents(Item.UnitPrice) · weakest probability @Format.Probability(Review.Confidence)</p>
+    @if (Review.Reasons.Count > 0)
+    {
+        <ul class="reasons">
+            @foreach (var reason in Review.Reasons)
+            {
+                <li>@reason</li>
+            }
+        </ul>
+    }
+    @if (Opinion is not null || Asking || SecondOpinionError is not null)
+    {
+        @* Compared directly: the settlement lists differences only when they decide the route, not after an edit or
+           when the rule accepts the line at a lower threshold. *@
+        var differences = Opinion is null ? [] : EscalationPolicy.Differences(Outcome.Result, Outcome.Questions, Opinion, SecondModel);
+        <div class="second-opinion @(Asking ? "asking" : differences.Count > 0 || SecondOpinionError is not null ? "disagree" : "agree")">
+            <span class="second-title">Second opinion · @SecondModel</span>
+            @if (Asking)
+            {
+                <span>@(Outcome.Mode == "replay" ? "Reading the recorded answers…" : "Asking the same closed questions…")</span>
+            }
+            else if (SecondOpinionError is not null)
+            {
+                <span>@(Settlement.Route == LineRoute.Rule ? "The second opinion failed. At this threshold the rule accepts the line without it." : SecondOpinionError)</span>
+            }
+            else if (differences.Count > 0)
+            {
+                <span>@(Settlement.Route == LineRoute.Rule ? "The models disagree. At this threshold the rule accepts the line without the second opinion." : "The models disagree, so a person decides.")</span>
+                <ul>
+                    @foreach (var difference in differences)
+                    {
+                        <li>@difference</li>
+                    }
+                </ul>
+            }
+            else if (Opinion is not null)
+            {
+                <span>Chose the same option for all @Outcome.Questions.Count questions@(Edits is { Count: > 0 } ? ", before the reviewer's edits" : "") · @Format.Seconds(Opinion.ElapsedMs)</span>
+            }
+        </div>
+    }
+    @foreach (var question in Outcome.Questions)
+    {
+        var answer = Outcome.Result.Answers[question.Name];
+        var selected = Edits?.GetValueOrDefault(question.Name) ?? answer.Choice;
+        <div class="answer">
+            <span class="question">@question.Label</span>
+            <FluentSelect TOption="DecisionOption" TValue="string" Items="question.Options" Width="100%"
+                          Class="@(selected == answer.Choice ? null : "edited")"
+                          AriaLabel="@($"{question.Label} for pay item {Item.Number}")"
+                          OptionValue="@(o => o.Key)"
+                          OptionText="@(o => $"{Format.Label(o.Key)} · {Format.Probability(answer.Probabilities[o.Key])}")"
+                          Value="@selected"
+                          ValueChanged="@(value => OnEdit.InvokeAsync(new LineEdit(Item.Number, question.Name, value, answer.Choice)))" />
+            <div class="bars">
+                @foreach (var (key, p) in answer.Probabilities.OrderByDescending(x => x.Value).Take(3))
+                {
+                    <div class="bar @(key == answer.Choice ? "top" : null)" title="@($"{Format.Label(key)}: probability {p.ToString("0.000", CultureInfo.InvariantCulture)}")">
+                        <span class="bar-label">@Format.Label(key)</span>
+                        <FluentProgressBar Min="0" Max="100" Value="@((int)Math.Round(p * 100))" Width="100%" />
+                        <span class="bar-value">@Format.Probability(p)</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    <details class="decision-inspector">
+        <summary>Inspect this decision</summary>
+        <p>Mode: <strong>@Outcome.Mode</strong> · Model: @Outcome.Result.Model. These are inputs, returned answers, and application rules; they are not a model-generated explanation.</p>
+        <p><a href="/model-guide.html" target="_blank" rel="noopener">How the Foundry decision model works</a></p>
+        <ol class="inspector-steps">
+            <li><strong>Input.</strong> @Item.Description (@Item.Unit). Prices and quantities stay in the application.</li>
+            <li><strong>Model output.</strong> The model selected one offered option for each question. Probabilities below belong to the original answers, not reviewer edits.</li>
+            <li><strong>Application checks.</strong> Choices must be offered; every option needs a probability between 0 and 1; probabilities must sum to 1 within the sample's tolerance. This verifies structure, not correctness.</li>
+            <li><strong>Application route.</strong> @(Settlement.Route switch { LineRoute.Rule => "Accepted by this demo's threshold rule.", LineRoute.Agreement => "Accepted by this demo's model-agreement rule, not proven correct.", _ => "A person must review this line." }) @Note</li>
+        </ol>
+        @if (Outcome.Result is { Request: { } sent, RawResponse: { } received })
+        {
+            <details class="technical-details">
+                <summary>HTTP request and response</summary>
+                <p>@(sent.Rebuilt
+                    ? "Recorded run: no request was sent now. Foundry returned each response below during a live run. Recordings keep responses only, so this build rebuilds each request from the recorded deployment name and the current questions."
+                    : "Live run: the requests this application sent and the responses it received.")
+                    The host is a placeholder and the token is never kept. JSON is indented for reading.</p>
+                <h4>Microsoft-Decision-1 request</h4>
+                <pre>@HttpRequest(DecisionWire.Path, DecisionWire.Scope, sent.Body)</pre>
+                <h4>Microsoft-Decision-1 response</h4>
+                <pre>@Indented(received)</pre>
+                <p>The application reads each answer's <code>choice</code> and <code>probabilities</code>, and <code>usage.input_tokens</code>. Its threshold uses <code>probabilities[choice]</code>, not <code>confidence</code>.</p>
+                @if (Opinion is { Request: { } secondSent, RawResponse: { } secondReceived })
+                {
+                    <h4>Second-opinion request to @Opinion.Model</h4>
+                    <pre>@HttpRequest(SecondOpinionWire.Path, SecondOpinionWire.Scope, secondSent.Body)</pre>
+                    <h4>Second-opinion response</h4>
+                    <pre>@Indented(secondReceived)</pre>
+                    <p>The answer is the JSON text of the <code>output_text</code> item. The strict schema allows only the offered option keys, and the response has no probabilities.</p>
+                }
+            </details>
+        }
+        @foreach (var question in Outcome.Questions)
+        {
+            var original = Outcome.Result.Answers[question.Name];
+            <section class="question-explanation">
+                <h4>@question.Label: @question.Instructions</h4>
+                <dl>
+                    @foreach (var option in question.Options)
+                    {
+                        <dt>@Format.Label(option.Key) @(option.Key == original.Choice ? "(model choice)" : "") · @Format.Probability(original.Probabilities[option.Key])</dt>
+                        <dd>@option.Description</dd>
+                    }
+                </dl>
+            </section>
+        }
+        <details class="technical-details">
+        <summary>Technical details: the application's validated view</summary>
+        <h4>Input state (no prices or quantities)</h4>
+        <pre>@Item.ToState().ToJsonString(InspectorJson)</pre>
+        <h4>Questions as the application defines them</h4>
+        <pre>@System.Text.Json.JsonSerializer.Serialize(Outcome.Questions, InspectorJson)</pre>
+        <h4>Validated answers (top and margin are computed by the application)</h4>
+        <pre>@System.Text.Json.JsonSerializer.Serialize(Outcome.Result.Answers, InspectorJson)</pre>
+        @if (Opinion is not null)
+        {
+            <h4>Second opinion from @Opinion.Model (no probabilities)</h4>
+            <pre>@System.Text.Json.JsonSerializer.Serialize(new { Opinion.Choices, Opinion.ElapsedMs, Opinion.InputTokens, Opinion.OutputTokens }, InspectorJson)</pre>
+            <p>The second model was requested to answer under a JSON schema containing only offered options. The application rejects answers outside that contract. Options containing a quote travel under aliases such as option_1 and are mapped back.</p>
+        }
+        <p>Automatic acceptance requires every selected answer to meet the threshold, be a highest-probability option, and not be Unclear. Below the threshold, a line is accepted only when the second model chooses the same option for every question. Reviewer edits require explicit approval. Displayed probabilities remain the original scores.</p>
+        </details>
+    </details>
+    <div class="actions">
+        <span class="note">@Note</span>
+        @if (ApprovedAt is not null)
+        {
+            <FluentBadge Appearance="BadgeAppearance.Filled" Color="BadgeColor.Success" Content="Approved" />
+        }
+        else if (Settlement.Route == LineRoute.Rule)
+        {
+            @* Accepted by the rule: no human approval needed. Editing an answer sends it back to review. *@
+            <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Success" Content="Accepted by demo rule" />
+        }
+        else if (Settlement.Route == LineRoute.Agreement)
+        {
+            <FluentBadge Appearance="BadgeAppearance.Tint" Color="BadgeColor.Success" Content="Accepted by agreement" />
+        }
+        else
+        {
+            @* Approval waits for the second opinion, so a person always approves the final evidence. *@
+            <FluentButton Appearance="ButtonAppearance.Primary" IconStart="@(new Icons.Regular.Size20.Checkmark())" Disabled="Asking" OnClick="@(() => OnApprove.InvokeAsync(Item.Number))">Approve line</FluentButton>
+        }
+    </div>
+</FluentCard>
+
+@code {
+    // Razor encodes the output, so the JSON can keep quotes and apostrophes readable, as in 8" or 0'-6'.
+    static readonly System.Text.Json.JsonSerializerOptions InspectorJson = new(System.Text.Json.JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+        NewLine = "\n",
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
+
+    static string Indented(string json) => System.Text.Json.Nodes.JsonNode.Parse(json)?.ToJsonString(InspectorJson) ?? json;
+
+    // The real host comes from FOUNDRY_RESOURCE_ENDPOINT; a placeholder keeps resource names off a shared screen.
+    static string HttpRequest(string path, string scope, string body) =>
+        $"POST https://YOUR-RESOURCE.services.ai.azure.com/{path}\n"
+        + $"Authorization: Bearer <Microsoft Entra token for {scope}>\n"
+        + "Content-Type: application/json; charset=utf-8\nAccept: application/json\n\n"
+        + Indented(body);
+
+    [Parameter, EditorRequired] public BidItem Item { get; set; } = default!;
+    [Parameter, EditorRequired] public DecisionOutcome Outcome { get; set; } = default!;
+    [Parameter, EditorRequired] public LineReview Review { get; set; } = default!;
+    [Parameter, EditorRequired] public Settlement Settlement { get; set; } = default!;
+    [Parameter] public SecondOpinion? Opinion { get; set; }
+    [Parameter] public string SecondModel { get; set; } = "second model";
+    [Parameter] public string? SecondOpinionError { get; set; }
+    [Parameter] public bool Asking { get; set; }
+    [Parameter] public IReadOnlyDictionary<string, string>? Edits { get; set; }
+    [Parameter] public DateTimeOffset? ApprovedAt { get; set; }
+    [Parameter] public EventCallback<LineEdit> OnEdit { get; set; }
+    [Parameter] public EventCallback<string> OnApprove { get; set; }
+
+    string Note => ApprovedAt is { } at
+        ? $"Approved locally at {at.ToLocalTime().ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"))}. Nothing was sent."
+        : Edits is { Count: > 0 } edits
+            ? $"{edits.Count} answer{(edits.Count == 1 ? "" : "s")} changed by the reviewer. Approval is required."
+            : Settlement.Route switch
+            {
+                LineRoute.Rule => "Accepted by this demo's policy, not proven correct. Change an answer to require review.",
+                LineRoute.Agreement => $"Below the threshold, but {SecondModel} chose the same option for every question. Change an answer to send it back to review.",
+                _ when Asking => $"Waiting for {SecondModel}.",
+                _ => Settlement.Note ?? "Awaiting review.",
+            };
+}

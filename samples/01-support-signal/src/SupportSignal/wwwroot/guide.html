@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en-US">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Guided lab · Support Signal</title><link rel="stylesheet" href="/guide.css"></head>
+<body><main><nav><a href="/">← Back to Support Signal</a><span>FOUNDRY FIELD NOTES · LAB 001</span></nav>
+<h1 id="lab-001-from-a-support-request-to-human-review">Lab 001: from a support request to human review</h1>
+<p><strong>Question:</strong> How can we classify a support request, check the output, and keep a person in control before acting?</p>
+<p>You need basic familiarity with JSON. Choose new inference through your own Foundry deployment or a separate 15-minute local exercise with deterministic simulation. Both follow the same outage case, but their engine labels, expected outputs, and evidence are different. Everything uses synthetic data and US English.</p>
+<h2 id="choose-your-path">Choose your path</h2>
+<p>Start with the <a href="#local-simulation-exercise-separate">local simulation exercise</a> if you do not have Azure access. For new inference, configure <a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/README.md#run-with-microsoft-foundry">your local app with Foundry</a> first, or optionally <a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/docs/azure-deployment.md">deploy your own hosted app</a> after satisfying its shared-platform prerequisites. You do not need access to a maintainer's deployment.</p>
+<p><strong>Verification status (2026-10-14):</strong> Azure deployment, Entra sign-in, managed-identity inference, review, and JSON export were exercised. The separate recorded Azure run below is evidence of that dated run, not a guarantee of the next answer. A later read-only check passed configuration and anonymous redirects; it did not repeat inference.</p>
+<h2 id="cloud-walkthrough-primary">Cloud walkthrough (primary)</h2>
+<p>This walkthrough calls your Foundry deployment, whether the UI runs on localhost or your own Azure host. Complete the appropriate setup above and authorize one billed synthetic request. For a hosted app, use an allowed Microsoft Entra account. This walkthrough does not deploy resources.</p>
+<ol>
+<li><strong>Confirm the boundary.</strong> Select <strong>Microsoft Foundry · MAF</strong>. A local app shows <strong>Local development</strong> and uses your Azure CLI identity. A hosted app requires sign-in, shows <strong>Azure App Service</strong>, and disables simulation. Foundry serves the model in both cases; App Service hosting is optional. Stop if the page does not match your intended environment.</li>
+<li><strong>Predict, then ask.</strong> Select <strong>Service outage</strong>. Before analyzing, distinguish the requester's report from a verified incident: neither the cause nor a recovery time is known. Click <strong>Analyze request</strong> once. A live failure must remain an error; do not substitute simulation and call it a successful Foundry run.</li>
+<li><strong>Inspect, do not just admire.</strong> Check category, proposed priority, and whether the evidence appears verbatim in the input. Open <strong>Inspect this decision</strong> for the application checks and review policy, then its <strong>Technical details</strong> for the input and original JSON. Read the summary and suggested action for unsupported claims. Reliability / High was observed in the dated run, but exact prose can vary. Valid JSON and an exact quote do not establish a correct interpretation.</li>
+<li><strong>Exercise the review boundary.</strong> Edit the reply to acknowledge the report without promising a cause or recovery time. Approve it, edit it again, and verify approval clears. Reapprove and export JSON. Confirm that the original proposal and human edits remain separate and that the export says <code>mode: foundry</code>. Nothing is sent to a customer.</li>
+<li><strong>Explain what ran.</strong> The application called a code-defined MAF agent backed by Foundry inference, using Azure CLI credentials locally or managed identity when hosted. It did not provision a hosted agent or execute a tool. Record the actual outcome and any correction; do not substitute the historical screenshot as evidence of your run.</li>
+</ol>
+<p><strong>Checkpoint:</strong> What does the application prove, and what still requires judgment? It enforces structure, evidence membership, and review invalidation; a person still evaluates whether the interpretation and proposed response are appropriate. Approval is browser state, not a durable audit record.</p>
+<p>Stop here for the cloud walkthrough. Continue below only for the separate local exercise; it does not execute MAF or call Foundry.</p>
+<h2 id="local-simulation-exercise-separate">Local simulation exercise (separate)</h2>
+<p>Follow each Action and compare the deterministic result. Install the SDK pinned in the repository's <code>global.json</code> from the <a href="https://dotnet.microsoft.com/en-us/download/dotnet/11.0?wt.mc_id=AI-MVP-5004753">Microsoft .NET downloads</a>. PowerShell 7 runs the helper scripts. From the repository root:</p>
+<pre><code class="language-powershell">./scripts/Test-Prerequisites.ps1
+./Start-Demo.ps1 -Lab 1 -Offline
+</code></pre>
+<p>Open http://localhost:5187. Choose <strong>Local simulation</strong>. The explicit <code>-Offline</code> switch disables live model configuration for this process, even if the terminal has Foundry variables. It uses deterministic rules, no credentials, no cloud calls, and no MAF execution. Package restore may still need internet access. Stop the server with Ctrl+C when finished.</p>
+<p><strong>Read the walkthrough:</strong> follow the input, result table, screenshot, and export excerpt below. These document simulation behavior, not measured AI quality. Variable IDs, timestamps, and latency are deliberately omitted from the excerpts.</p>
+<p>Pinned baseline: .NET SDK <code>11.0.100-rc.1.26425.128</code> (RC1) and <code>Microsoft.Agents.AI.Foundry</code> <code>1.24.0-preview.261006.1</code> (preview). This guide does not upgrade those dependencies or claim they will remain the latest.</p>
+<h3 id="predict-before-running">1. Predict before running</h3>
+<p><strong>Objective:</strong> separate what the requester reports from what the support team has verified.</p>
+<p><strong>Action:</strong> select <strong>Service outage</strong>. Read this exact fixture:</p>
+<pre><code class="language-text">The production portal has been unavailable to all users since 9:15 AM. Opening the dashboard returns error 500. We need access restored to continue operations.
+</code></pre>
+<p><strong>Predict:</strong> Which category fits: Access, Billing, Reliability, or General? Is the cause known? Does the message prove that every user is affected?</p>
+<p><strong>Interpretation:</strong> the user reports an outage affecting everyone. We still have to verify scope. Neither a database failure nor a resolution time appears in the input.</p>
+<p><strong>Code:</strong> <code>samples/01-support-signal/src/SupportSignal/wwwroot/app.js</code>, <code>scenarios.outage</code> owns the fixture. <code>Program.cs</code>, <code>Triage.Instructions</code> tells the live agent to acknowledge uncertainty. Instructions are guidance to the model, not proof that it obeys them.</p>
+<h3 id="analyze-and-inspect-the-proposal">2. Analyze and inspect the proposal</h3>
+<p><strong>Action:</strong> confirm <strong>Local simulation</strong> in the engine selector above the request, then click <strong>Analyze request</strong>. The execution strip must identify deterministic rules, not Foundry inference.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Expected simulation result</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Category</td>
+<td>Reliability</td>
+<td>The rules find outage-related words.</td>
+</tr>
+<tr>
+<td>Priority</td>
+<td>High</td>
+<td>Reliability plus <code>production</code> or <code>all users</code> triggers High.</td>
+</tr>
+<tr>
+<td>Summary</td>
+<td>Possible service disruption; scope not yet verified.</td>
+<td>A report is not a confirmed diagnosis.</td>
+</tr>
+<tr>
+<td>Evidence</td>
+<td>The entire fixture above</td>
+<td>It is under 180 characters; the simulator copies up to 180.</td>
+</tr>
+<tr>
+<td>Next step</td>
+<td>Verify service status and scope before escalating to the on-call team.</td>
+<td>A suggestion for a person; no escalation occurs.</td>
+</tr>
+<tr>
+<td>Engine label</td>
+<td>SIMULATION · REVIEW</td>
+<td>This is not a Foundry response.</td>
+</tr>
+</tbody>
+</table>
+<p>The draft reply thanks the requester, repeats the suggested step, and states that the cause and resolution timeline have not been confirmed.</p>
+<p><img src="/guide-assets/outage-simulation.png" alt="Service-outage simulation with evidence and a proposal awaiting review" /></p>
+<p><strong>Checkpoint:</strong> Why does the summary say “possible” even though priority is High? Priority is a triage rule; it does not verify the incident.</p>
+<p><strong>Code:</strong> <code>Program.cs</code>, <code>Triage.Simulate</code> implements these exact rules. Live output can differ; do not use this table as an exact-output assertion for a model.</p>
+<h3 id="follow-the-validation-boundary">3. Follow the validation boundary</h3>
+<p><strong>Action:</strong> open <strong>Inspect this decision</strong> for the readable checks and policy. Its nested <strong>Technical details</strong> retains the input and original response before edits. Inspect <code>Triage.Validate</code> in <code>Program.cs</code>; it runs after either provider returns a proposal. Processing time is secondary under <strong>Run details</strong>, not a model-quality or latency benchmark.</p>
+<table>
+<thead>
+<tr>
+<th>Application check</th>
+<th>Rejects</th>
+<th>Does not establish</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Allowed category and priority</td>
+<td>An unsupported label</td>
+<td>Correct classification</td>
+</tr>
+<tr>
+<td>Required text, at most 3,000 characters per field</td>
+<td>Missing, empty, or oversized text</td>
+<td>A useful or safe recommendation</td>
+</tr>
+<tr>
+<td>Evidence occurs verbatim in the request</td>
+<td>An invented quotation</td>
+<td>That the quotation supports the interpretation</td>
+</tr>
+</tbody>
+</table>
+<p>An invalid provider result produces an error, not a simulated replacement. The request itself must be 15–6,000 characters. The UI renders output as text.</p>
+<p><strong>Optional action:</strong> with the pinned SDK available, run the offline contract checks from the repository root:</p>
+<pre><code class="language-powershell">dotnet run --project samples/01-support-signal/tests/SupportSignal.Checks
+</code></pre>
+<p>The current baseline reports <code>11 provider-contract checks passed; no model called.</code> It covers credential selection, invented evidence, unknown labels, empty or oversized fields, malformed JSON, null output, and missing fields. This is not an adversarial-model evaluation.</p>
+<p><strong>Checkpoint:</strong> Could a wrong interpretation pass all these checks? Yes. An exact quote and valid JSON can still accompany a wrong conclusion.</p>
+<h3 id="review-edit-approve-and-export">4. Review, edit, approve, and export</h3>
+<p><strong>Action:</strong> replace the draft response with:</p>
+<pre><code class="language-text">Thank you for reporting this. We will verify the portal status and affected users before confirming the scope. We do not yet have a confirmed cause or recovery time.
+</code></pre>
+<p>Click <strong>Approve proposal</strong>. Expected status: <code>Approved locally. No message was sent and no action was executed.</code> Now append <code> We will share an update after verification.</code> to the response. Expected status: <code>Proposal edited: review is required again.</code> Approve again and choose <strong>Export JSON</strong>.</p>
+<p>The download preserves the original proposal and the edited fields separately. This excerpt is shortened for reading; the actual file also contains the input, ID, timings, and timestamps:</p>
+<pre><code class="language-json">{
+  &quot;mode&quot;: &quot;simulation&quot;,
+  &quot;model&quot;: &quot;deterministic-rules-v1&quot;,
+  &quot;requiresHumanReview&quot;: true,
+  &quot;proposal&quot;: { &quot;category&quot;: &quot;Reliability&quot;, &quot;priority&quot;: &quot;High&quot; },
+  &quot;reviewed&quot;: true,
+  &quot;humanEdits&quot;: {
+    &quot;nextStep&quot;: &quot;Verify service status and scope before escalating to the on-call team.&quot;,
+    &quot;draftReply&quot;: &quot;Thank you for reporting this. We will verify the portal status and affected users before confirming the scope. We do not yet have a confirmed cause or recovery time. We will share an update after verification.&quot;
+  }
+}
+</code></pre>
+<p><strong>Interpretation:</strong> <code>requiresHumanReview</code> describes the workflow; <code>reviewed</code> records the local UI decision. Reloading loses the browser state. Approval is not authenticated, persistent, or an instruction to contact someone. The exported file contains the request and response, so use synthetic data.</p>
+<p><strong>Code:</strong> <code>app.js</code>, <code>unapprove</code> clears approval after edits; the export handler retains <code>proposal</code> and adds <code>humanEdits</code>.</p>
+<h3 id="understand-where-maf-belongs">5. Understand where MAF belongs</h3>
+<pre><code class="language-text">Browser → POST /api/analyze
+  simulation → Triage.Simulate
+  foundry    → AIProjectClient.AsAIAgent → RunAsync → Foundry Responses
+Both paths → Parse where needed → Triage.Validate → Browser review → Local export
+</code></pre>
+<p>In live mode, MAF supplies the agent abstraction and execution interface. This sample creates a code-defined agent with instructions and calls <code>RunAsync</code>; it does not create a hosted agent resource. Foundry serves inference. Our application owns parsing, validation, and browser approval. See Microsoft's <a href="https://learn.microsoft.com/en-us/agent-framework/integrations/by-component/model-providers/microsoft-foundry?wt.mc_id=AI-MVP-5004753">Foundry provider integration</a>, accessed 2026-10-14.</p>
+<p>This example uses no tools, conversation history, or multi-agent orchestration. Our design recommendation: learn the single-agent boundary first; direct model inference is also a reasonable alternative for a one-shot classification. The human-review buttons here are application code, not MAF tool approval.</p>
+<h3 id="change-one-rule-and-explain-the-result">6. Change one rule and explain the result</h3>
+<p><strong>Predict:</strong> Will removing the reported production-wide scope change category or priority?</p>
+<p><strong>Action:</strong> replace the request with this controlled variation, keep simulation selected, and analyze again:</p>
+<pre><code class="language-text">The test portal is unavailable in my browser. Opening the dashboard returns error 500.
+</code></pre>
+<p><strong>Expected:</strong> Reliability / Priority medium. The outage keywords remain, but neither <code>production</code> nor <code>all users</code> is present. Editing the input clears the previous proposal; a new analysis is required.</p>
+<p><strong>Exercise:</strong> in <code>Triage.Simulate</code>, change the High-priority condition to require both <code>production</code> and <code>all users</code> instead of either one. Stop and restart after editing, then try <code>The production portal is unavailable in my browser.</code> Before the change it is High; afterward it is Medium. Restore the original rule when done. This changes only simulation; live instructions and model behavior are separate.</p>
+<p><strong>Reflection:</strong> Is that stricter rule appropriate for your support team? That is a policy decision to test with representative labeled requests, not something this demo proves.</p>
+<h2 id="recorded-azure-run-and-evidence-limits">Recorded Azure run and evidence limits</h2>
+<p>On 2026-10-14, an allowed owner signed in to the deployed App Service application. The Service outage fixture was analyzed through MAF and Foundry using the app's managed identity and the shared <code>bid-review-escalation</code> deployment. Simulation was disabled. The first attempt timed out during a shared-plan restart; the next attempt succeeded.</p>
+<table>
+<thead>
+<tr>
+<th>Observation</th>
+<th>Recorded result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Mode</td>
+<td><code>foundry</code></td>
+</tr>
+<tr>
+<td>Model</td>
+<td>gpt-6-luna version 2026-09-22 behind the shared <code>bid-review-escalation</code> deployment, as recorded when Lab 002 created it</td>
+</tr>
+<tr>
+<td>Classification</td>
+<td>Reliability / High</td>
+</tr>
+<tr>
+<td>Evidence</td>
+<td><code>unavailable to all users since 9:15 AM</code></td>
+</tr>
+<tr>
+<td>Summary</td>
+<td>The production portal is reportedly unavailable to all users, with a 500 error since 9:15 AM.</td>
+</tr>
+<tr>
+<td>Application processing time</td>
+<td>11,011 ms for this successful request</td>
+</tr>
+<tr>
+<td>Human review</td>
+<td>Approve → edit draft reply → approval cleared → approve again → export</td>
+</tr>
+<tr>
+<td>Export</td>
+<td>Original model proposal retained; human edits separate; <code>reviewed: true</code> and timestamps present</td>
+</tr>
+</tbody>
+</table>
+<p><img src="/guide-assets/cloud-outage-reviewed.png" alt="Azure-hosted Foundry outage result after editing and approving the draft response" /></p>
+<p>The reviewed reply was: “Thank you for reporting this disruption. A human operator needs to verify the scope and start time before confirming the next update.” It replaced only the editable response; the export retained the original model reply. Nothing was sent to a customer or an operations system.</p>
+<p><strong>Checkpoint:</strong> The evidence is an exact substring, but does that establish that an outage really occurred? No: it establishes what the synthetic requester said. A human still needs to verify scope and cause. One successful run is integration evidence, not a quality, cost, or latency benchmark. Exact model prose can vary, and disallowed-user access has not been separately exercised.</p>
+<p>Use the deployed cloud lab for live inference; consult the sample's verification record for actual run evidence. For optional local development with an authorized deployment, follow the sample README for <code>FOUNDRY_PROJECT_ENDPOINT</code> and <code>FOUNDRY_MODEL</code>; placeholders are not real resources. The server uses managed identity in Azure and <code>AzureCliCredential</code> locally. Microsoft documents <a href="https://learn.microsoft.com/en-us/dotnet/azure/sdk/authentication/local-development-dev-accounts?wt.mc_id=AI-MVP-5004753">developer-account authentication</a>, accessed 2026-10-14.</p>
+<p>When authorized, select <strong>Microsoft Foundry · MAF</strong>, rerun the same fixture, and record date, deployment/model version, mode, output, validation outcome, and human corrections. Do not include credentials. An enabled dropdown confirms configuration only; it does not prove access. Live failure remains an error. Do not label simulation screenshots as live evidence.</p>
+<h2 id="troubleshooting-and-completion">Troubleshooting and completion</h2>
+<h3 id="code-map">Code map</h3>
+<ul>
+<li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/src/SupportSignal/Program.cs">Program.cs</a>: API, MAF call, simulation, and validation.</li>
+<li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/src/SupportSignal/wwwroot/app.js">app.js</a>: scenarios, approval state, edits, and export.</li>
+<li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/tests/SupportSignal.Checks/Program.cs">Contract checks</a>: invalid provider-output cases.</li>
+</ul>
+<p>Browser-guide source links open GitHub and require internet access; local source files are also available in your checkout. Reading this included walkthrough and running simulation do not require GitHub sign-in once dependencies are available.</p>
+<ul>
+<li>Server will not start: run <code>scripts/Test-Prerequisites.ps1</code>, install the pinned SDK if needed, and check that port 5187 is available. <code>Start-Demo.ps1 -Lab 1 -Port 5188 -Offline</code> selects another port for the local simulation exercise.</li>
+<li>Foundry disabled: use simulation for this walkthrough; configuration and live authorization are separate prerequisites.</li>
+<li>No result after editing input: expected; click Analyze request again.</li>
+<li>Approval disappears after editing output: expected; review the new text and approve again.</li>
+</ul>
+<p>You have completed the walkthrough when you can explain the Reliability/High result, identify a limitation of evidence validation, demonstrate reapproval after edits, and distinguish MAF's responsibility from the app's. Next: ambiguous requests and adversarial input, with separately measured results.</p>
+
+</main></body></html>

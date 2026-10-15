@@ -1,0 +1,8 @@
+.dotnet/
+**/bin/
+**/obj/
+.env
+.env.*
+!.env.example
+artifacts/
+*.user

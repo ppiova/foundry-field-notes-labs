@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="samples/01-support-signal/src/SupportSignal/SupportSignal.csproj" />
+  <Project Path="samples/01-support-signal/tests/SupportSignal.Checks/SupportSignal.Checks.csproj" />
+  <Project Path="samples/02-bid-review-queue/src/BidReviewQueue/BidReviewQueue.csproj" />
+  <Project Path="samples/02-bid-review-queue/src/BidReviewQueue.Eval/BidReviewQueue.Eval.csproj" />
+  <Project Path="samples/02-bid-review-queue/tests/BidReviewQueue.Checks/BidReviewQueue.Checks.csproj" />
+</Solution>

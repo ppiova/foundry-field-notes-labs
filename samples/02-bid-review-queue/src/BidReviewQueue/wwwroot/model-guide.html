@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en-US">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Microsoft-Decision-1 in Foundry · Foundry Field Notes</title><link rel="stylesheet" href="/model-guide.css"></head>
+<body><main><nav><a href="/">Back to Bid Review Queue</a><span>FOUNDRY FIELD NOTES · LAB 002</span></nav>
+<p class="source-note">This walkthrough is included with the app. Source-code and companion-document links open GitHub; local copies are available in your checkout.</p>
+<h1 id="microsoft-foundry-from-model-probabilities-to-a-reviewable-decision">Microsoft Foundry: from model probabilities to a reviewable decision</h1>
+<p><strong>The takeaway:</strong> Microsoft Foundry serves a model that answers bounded questions. Microsoft-Decision-1 supplies choices and probabilities; our application decides when those answers are good enough to accept, when to ask another model, and when a person must review them.</p>
+<p>Read this after the <a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/docs/demo-script.md">five-minute demo</a>. No Azure calls are needed to follow the recorded example. This guide explains the documented API behavior, not an unpublished model architecture or training procedure.</p>
+<h2 id="where-foundry-fits">1. Where Foundry fits</h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Build the input and allowed options</td>
+<td>Application</td>
+</tr>
+<tr>
+<td>Return a choice and probabilities</td>
+<td>Microsoft-Decision-1 deployment in Foundry</td>
+</tr>
+<tr>
+<td>Validate the response and apply a threshold</td>
+<td>Application</td>
+</tr>
+<tr>
+<td>Answer eligible uncertain questions again</td>
+<td>Optional generative model deployment in Foundry</td>
+</tr>
+<tr>
+<td>Compare answers and determine the review route</td>
+<td>Application</td>
+</tr>
+<tr>
+<td>Review, correct, and approve where required</td>
+<td>Person, through the application</td>
+</tr>
+</tbody>
+</table>
+<p>These are calls the application orchestrates, not an automatic Foundry workflow. Both models are deployed in the selected Foundry resource. The hosted app authenticates using its managed identity; local live development uses Azure CLI authentication. App Service hosts the UI and backend, not the model. The recording bypasses inference and replays saved answers through the same validation and policy.</p>
+<p>For this lab, Foundry's contribution is concrete: model deployment and inference access through authenticated APIs. We do not claim to demonstrate every Foundry capability. See <a href="https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision?wt.mc_id=AI-MVP-5004753">the official decision-model guide</a> and <a href="https://learn.microsoft.com/en-us/azure/foundry/concepts/rbac-foundry?wt.mc_id=AI-MVP-5004753">Foundry role-based access control</a>.</p>
+<h2 id="a-decision-api-not-a-chat-response">2. A decision API, not a chat response</h2>
+<p>Microsoft Learn documents three question types:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>What you ask</th>
+<th>What you receive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>noul</code></td>
+<td>Does a condition hold?</td>
+<td>A probability from 0 to 1.</td>
+</tr>
+<tr>
+<td><code>choice</code></td>
+<td>Which offered option fits?</td>
+<td>A selected option and a probability for each option.</td>
+</tr>
+<tr>
+<td><code>score</code></td>
+<td>Where does this input fall on an ordered scale?</td>
+<td>A score and probabilities for the levels; the score is the probability-weighted average of their indexes.</td>
+</tr>
+</tbody>
+</table>
+<p>This sample uses <strong>only <code>choice</code></strong>. It does not ask the model to invent categories, write an explanation, extract arbitrary JSON, or carry out an action. The API does not return a written rationale. A generative model remains the appropriate choice when the task needs prose, summaries, or explanations.</p>
+<p>Multiple questions can share one <code>state</code>. Here, each pay item gets system and work-type questions, plus size, material, or depth questions when the code finds candidate spans. These are separate answers, not independent events whose probabilities we can automatically multiply.</p>
+<h2 id="the-application-defines-the-decision">3. The application defines the decision</h2>
+<p>Consider item 13, <code>Sanitary Sewer Bypass Pumping, Complete</code>. This is an abbreviated request: it shows the actual system question and options from the application; the full request also includes the work-type question.</p>
+<pre><code class="language-json">{
+  &quot;model&quot;: &quot;bid-review-decision&quot;,
+  &quot;state&quot;: {
+    &quot;pay_item&quot;: &quot;13&quot;,
+    &quot;description&quot;: &quot;Sanitary Sewer Bypass Pumping, Complete&quot;,
+    &quot;unit&quot;: &quot;LS&quot;
+  },
+  &quot;questions&quot;: {
+    &quot;system&quot;: {
+      &quot;type&quot;: &quot;choice&quot;,
+      &quot;instructions&quot;: &quot;Which utility system does this bid pay item belong to?&quot;,
+      &quot;criteria&quot;: {
+        &quot;sanitary_gravity&quot;: &quot;Gravity sanitary sewer: sewer pipe, manholes, service laterals, cleanouts&quot;,
+        &quot;force_main&quot;: &quot;Sanitary force main, lift station, or pump station&quot;,
+        &quot;water&quot;: &quot;Potable water: water mains, valves, hydrants, services, meters&quot;,
+        &quot;storm&quot;: &quot;Storm drainage: storm pipe, inlets, culverts, end sections&quot;,
+        &quot;general&quot;: &quot;Not tied to one utility system: mobilization, traffic control, bonds, survey, restoration, allowances&quot;,
+        &quot;unclear&quot;: &quot;The description does not identify the system&quot;
+      }
+    }
+  }
+}
+</code></pre>
+<p>The request goes to the Foundry resource's <code>/providers/microsoft/v1/systemone</code> endpoint. <code>model</code> names the deployment, not necessarily the catalog model. <code>state</code> contains the input; <code>instructions</code> defines the question; <code>criteria</code> defines the allowed answers. Prices and quantities are not in this state.</p>
+<p>The question design is part of the system's quality. Ambiguous options can still produce confident scores. An <code>unclear</code> option allows abstention; it does not guarantee that the model will use it correctly.</p>
+<p>For numeric spans, code offers only text it found in the description. If a line mentions both a <code>6&quot;</code> lateral and an <code>8&quot;</code> main, both are candidates. Preventing invented sizes does not prevent selecting the wrong real size.</p>
+<h2 id="read-an-actual-recorded-answer">4. Read an actual recorded answer</h2>
+<p>The bundled <a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/Data/recordings/demo-run.jsonl">demo recording</a>, captured on 2026-10-14, contains this system answer for item 13. The table rounds the recorded probabilities to four decimal places:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th style="text-align: right;">Probability</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>force_main</code></td>
+<td style="text-align: right;">0.7078</td>
+</tr>
+<tr>
+<td><code>general</code></td>
+<td style="text-align: right;">0.1394</td>
+</tr>
+<tr>
+<td><code>sanitary_gravity</code></td>
+<td style="text-align: right;">0.1394</td>
+</tr>
+<tr>
+<td><code>unclear</code></td>
+<td style="text-align: right;">0.0089</td>
+</tr>
+<tr>
+<td><code>storm</code></td>
+<td style="text-align: right;">0.0037</td>
+</tr>
+<tr>
+<td><code>water</code></td>
+<td style="text-align: right;">0.0008</td>
+</tr>
+</tbody>
+</table>
+<p>The recorded <code>choice</code> is <code>force_main</code>. The response also has a separate <code>confidence</code> field, approximately 0.6494. <strong>This application's threshold uses <code>probabilities[choice]</code>, approximately 0.7078, not that separate field.</strong> The UI rounds it to 0.71. We do not assume undocumented equivalence between the two fields.</p>
+<p>The parser checks that every question has an answer, the choice is offered, every offered option has a finite probability between 0 and 1, no unoffered option is scored, and probabilities sum to 1 within a 0.02 tolerance. The tolerance and acceptance policy are application decisions, not service guarantees.</p>
+<p><strong>Checkpoint:</strong> Does a valid answer establish that bypass pumping belongs to force main? No. It establishes that the response meets the contract.</p>
+<h2 id="the-application-not-the-model-sets-the-review-policy">5. The application, not the model, sets the review policy</h2>
+<p>At the lab's default threshold of 0.90:</p>
+<ol>
+<li>A line can be accepted by rule only when every selected answer meets the threshold, no answer is <code>unclear</code>, and each selected option has the highest probability for its question.</li>
+<li>If the line is below the threshold, the optional second model in Foundry answers the same bounded questions. In this recording, gpt-6-luna chooses <code>sanitary_gravity</code> for item 13, so the models disagree and the line stays with a person.</li>
+<li>Agreement can accept an eligible line under this sample's policy, but does not create a new calibrated probability. Two models can share the same error. <code>unclear</code> answers and reviewer edits still require a person; a failed second opinion is not accepted by agreement.</li>
+</ol>
+<p>The weakest selected probability is a conservative input to our rule, <strong>not a calculated probability that the whole line is correct</strong>. Similarly, the review priority score uses the line amount and that weakest probability to order attention; it is not an estimate of financial loss.</p>
+<p>The threshold slider reevaluates saved answers without calling Foundry. Raising it can expose lines that have no second opinion yet; the UI requires an explicit request to obtain those opinions. An approval is local browser state, not a durable or authenticated audit record.</p>
+<h2 id="what-does-0.90-really-mean">6. What does 0.90 really mean?</h2>
+<p>A model probability is useful for decisions only to the extent that it behaves reliably on the intended workload. Calibration is a property measured over groups of predictions: among comparable predictions near 0.90, are roughly nine out of ten correct? One answer with a 0.90 score cannot establish that.</p>
+<p>Before using a threshold operationally, evaluate representative labeled examples, including ambiguous and out-of-distribution inputs. Measure incorrect automatic acceptances separately from review volume. Check calibration, wording and option-order sensitivity, failures, latency, and cost. Select a threshold based on the consequences of errors, not because 90% sounds reassuring. Microsoft Learn explicitly recommends workload-specific evaluation and meaningful human review for consequential decisions about people.</p>
+<p>The bundled evaluation has 99 synthetic labeled items, not a held-out industry benchmark. The recorded second-opinion run increased acceptance from 68 to 93 lines at 0.90 without an accepted error against those labels. That is an observation, not proof of general reliability or measured human time savings. See <a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/docs/verification.md">the full evidence and failed requests</a>.</p>
+<h2 id="follow-it-in-code-or-on-screen">7. Follow it in code or on screen</h2>
+<table>
+<thead>
+<tr>
+<th>Boundary</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Input state and offered options</td>
+<td><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/PayItems.cs">PayItems.cs</a>: <code>BidItem.ToState</code>, <code>PayItemQuestions.For</code></td>
+</tr>
+<tr>
+<td>Foundry request and response contract</td>
+<td><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/Decisions.cs">Decisions.cs</a>: <code>DecisionWire.BuildRequest</code>, <code>ParseResponse</code></td>
+</tr>
+<tr>
+<td>Engine choice, failures, and deadlines</td>
+<td><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/DecisionService.cs">DecisionService.cs</a></td>
+</tr>
+<tr>
+<td>Second-model request</td>
+<td><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/Escalation.cs">Escalation.cs</a></td>
+</tr>
+</tbody>
+</table>
+<p>The <a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/docs/code-walkthrough.md">code walkthrough</a> follows item 13 through these files, with the exact request and response JSON.</p>
+<p>Start with <code>./Start-Demo.ps1 -Lab 2 -Offline</code>, run the demo form, and open <strong>Inspect this decision</strong> in the highlighted item 13 case. The inspector explains the input, original choices, checks, and route. Expand <strong>HTTP request and response</strong> for the JSON exchanged with Foundry, and <strong>Technical details</strong> for the application's validated view. Compare its question, options, probabilities, and second opinion with this guide. Say <strong>recorded responses from Foundry</strong>, not <strong>Foundry is running now</strong>.</p>
+<h2 id="sources-and-lifecycle">Sources and lifecycle</h2>
+<p>The <a href="https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision?wt.mc_id=AI-MVP-5004753">Microsoft Learn decision-model guide</a> was accessed on 2026-10-14 (page date 2026-10-07). It documents the question types, request path, lack of written rationales, calibration limits, wording sensitivity, and evaluation guidance. The <a href="https://learn.microsoft.com/en-us/azure/foundry/concepts/rbac-foundry?wt.mc_id=AI-MVP-5004753">RBAC guide</a> is recorded in the sample's <a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/docs/sources.md">source register</a>.</p>
+<p>This sample targets Microsoft-Decision-1 model version <code>1</code>, the Microsoft provider's <code>v1/systemone</code> API, and .NET 11 RC1. The catalog reported the decision model as <strong>Preview</strong> in the verified region on 2026-10-14; the source register records differing documentation signals rather than asserting general availability. Exact response values above are measured observations. Thresholds, ranking, and acceptance by agreement are our design recommendations, not built-in Foundry behavior.</p>
+
+</main></body></html>

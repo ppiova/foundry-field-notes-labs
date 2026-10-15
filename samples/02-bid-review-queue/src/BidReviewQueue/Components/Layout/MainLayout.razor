@@ -1,0 +1,32 @@
+@inherits LayoutComponentBase
+
+<FluentLayout GlobalScrollbar="true">
+    <FluentLayoutItem Area="LayoutArea.Header">
+        <div class="app-header">
+            <span class="brand"><span class="brand-mark">fn</span> Foundry Field Notes</span>
+            <span class="crumb">Lab 002 · Bid Review Queue</span>
+            @if (SignedInAs is not null)
+            {
+                <span class="account"><span class="account-name">Signed in as @SignedInAs · </span><a href="/.auth/logout?post_logout_redirect_uri=/">Sign out</a></span>
+            }
+        </div>
+    </FluentLayoutItem>
+    <FluentLayoutItem Area="LayoutArea.Content">
+        <main class="page">@Body</main>
+    </FluentLayoutItem>
+    <FluentLayoutItem Area="LayoutArea.Footer">
+        <div class="app-footer">
+            <span>Foundry Field Notes · Build it. Understand it. Make it reproducible.</span>
+            <span>Independent educational sample. Not affiliated with Microsoft. Synthetic data only.</span>
+        </div>
+    </FluentLayoutItem>
+</FluentLayout>
+<FluentProviders />
+
+@code {
+    [CascadingParameter] HttpContext? HttpContext { get; set; }
+
+    // App Service authentication sets this header after sign-in and removes it from client requests.
+    // Without App Service authentication (local runs) it is absent. Display only; access is enforced by the platform.
+    string? SignedInAs => HttpContext?.Request.Headers["X-MS-CLIENT-PRINCIPAL-NAME"].FirstOrDefault() is { Length: > 0 } name ? name : null;
+}
