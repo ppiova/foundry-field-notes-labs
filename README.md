@@ -64,7 +64,7 @@ For Lab 002, run `./Start-Demo.ps1 -Lab 2 -Offline`, open http://localhost:5190 
 
 Use **Inspect this decision** to follow the application checks. Edit an answer or reply, observe approval clear, and export the original output separately from your edits. Stop the local server with Ctrl+C; remove exported synthetic JSON when no longer needed.
 
-`-Offline` disables live configuration for the launched process, including inherited Foundry settings and custom recording paths. It does not make package restore work without internet. The helper also recognizes an optional, Git-ignored SDK under `.dotnet/dotnet.exe` on Windows or `.dotnet/dotnet` on Linux/macOS; it is not required when the pinned SDK is on PATH.
+`-Offline` disables live configuration for the launched process, including inherited Foundry settings and custom recording paths. It does not make package restore work without internet. The helper also recognizes an optional, Git-ignored SDK under `.dotnet/dotnet.exe` on Windows or `.dotnet/dotnet` on Linux/macOS; it is not required when the pinned SDK is on PATH. For SDK discovery, `global.json` searches `.dotnet` first, then the running `dotnet` installation. This lets SDK commands find the local pinned SDK when invoked through a .NET 10 or later host; see [SDK search paths](https://learn.microsoft.com/en-us/dotnet/core/tools/global-json?wt.mc_id=AI-MVP-5004753#paths), accessed 2026-10-16. After adding a local SDK, reload the VS Code window if the solution still reports a missing SDK.
 
 If startup or output differs, use [Lab 001 troubleshooting](samples/01-support-signal/docs/troubleshooting.md) or [Lab 002 troubleshooting](samples/02-bid-review-queue/docs/troubleshooting.md). Do not treat an error as a successful run.
 
