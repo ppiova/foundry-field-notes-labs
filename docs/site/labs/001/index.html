@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Follow a synthetic support request through a code-defined .NET agent, application validation, and human review. A static guide with an explicitly simulated example.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>A proposal, not an action | Foundry Field Notes</title>
+  <link rel="stylesheet" href="../../styles.css">
+  <script src="../../navigation.js" defer></script>
+  <script src="./guide.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../../index.html"><span class="brand-mark" aria-hidden="true">FN</span>Foundry Field Notes</a>
+    <span class="header-label">LAB 001 / .NET FIELD GUIDE</span>
+    <a href="https://github.com/ppiova/foundry-field-notes-labs">View repository <span aria-hidden="true">&#8599;</span></a>
+  </header>
+  <div class="page-layout">
+    <nav class="chapter-nav" aria-label="Guide chapters">
+      <a class="catalog-link" href="../../index.html">All labs <span aria-hidden="true">&#8599;</span></a>
+      <p class="eyebrow">THE WALKTHROUGH</p>
+      <a href="#problem"><span>01</span> The problem</a>
+      <a href="#boundary"><span>02</span> Who does what?</a>
+      <a href="#case"><span>03</span> One synthetic case</a>
+      <a href="#code"><span>04</span> Follow the C#</a>
+      <a href="#present"><span>05</span> Present the lab</a>
+      <a href="#evidence"><span>06</span> Evidence &amp; limits</a>
+      <p class="nav-note">For developers who know C# and JSON.<br>No agent-framework experience required.</p>
+    </nav>
+    <main id="main">
+      <section class="hero" id="problem" aria-labelledby="hero-title">
+        <p class="eyebrow">SUPPORT SIGNAL <span class="divider">/</span> 15-MINUTE WALKTHROUGH</p>
+        <h1 id="hero-title">A proposal,<br><em>not an action.</em></h1>
+        <p class="lead">Turn a support request into something a person can inspect. Keep classification, evidence, and approval as separate responsibilities.</p>
+        <div class="hero-actions"><a class="button primary" href="#case">Follow the outage case <span aria-hidden="true">&#8594;</span></a><a class="button secondary" href="#code">Go to the C#</a></div>
+        <div class="mode-banner"><span class="status-dot" aria-hidden="true"></span><div><strong>Static guide. Simulation example. No live inference.</strong><br>The displayed proposal documents deterministic rules, not a saved model response. This page runs neither .NET nor Microsoft Agent Framework and makes no Azure calls.</div></div>
+        <div class="problem-grid"><div><p class="eyebrow">THE BUSINESS PROBLEM</p><h2>A reported outage is not a verified diagnosis.</h2></div><p>A support operator needs a classification, a suggested next step, and a draft reply. The application must preserve what the requester actually said without pretending it confirmed the cause, contacted anyone, or restored service.</p></div>
+      </section>
+
+      <section id="boundary" aria-labelledby="boundary-title">
+        <div class="section-heading"><span class="section-number">02</span><div><p class="eyebrow">THE RESPONSIBILITY BOUNDARY</p><h2 id="boundary-title">One agent. Explicit checks. A human decision.</h2></div></div>
+        <div class="flow-grid">
+          <article class="flow-card"><span class="owner app">APPLICATION / C#</span><h3>01. Accept input</h3><p>Validate the request length and selected mode. Treat the text as untrusted data, not instructions to the application.</p><code>POST /api/analyze</code></article>
+          <article class="flow-card"><span class="owner model">LIVE PATH ONLY</span><h3>02. Propose</h3><p>A code-defined Agent Framework agent calls a Foundry deployment. The application owns the instructions; Foundry serves inference.</p><code>AsAIAgent / RunAsync</code></article>
+          <article class="flow-card"><span class="owner app">APPLICATION / C#</span><h3>03. Validate</h3><p>Parse the result. Check labels, required text, and exact evidence membership. Reject invalid results rather than simulating a success.</p><code>Triage.Validate</code></article>
+          <article class="flow-card"><span class="owner person">PERSON / REVIEW</span><h3>04. Review</h3><p>Inspect and edit the proposed reply. Approval is local; changing reviewed text clears it. No message is sent.</p><code>Original + human edits</code></article>
+        </div>
+        <aside class="takeaway"><strong>Simulation takes a different path.</strong> In the local app, <code>Triage.Simulate</code> replaces the model call with keyword rules, then uses the same output validation. It does not execute MAF. This website only explains that path.</aside>
+        <details><summary>Is this a Foundry hosted agent?</summary><p>No. In the live lab, <code>AIProjectClient.AsAIAgent</code> defines the agent in application code. It does not create a service-managed agent resource. The agent runs in the .NET application, with no tools or conversation memory in this sample. App Service hosting is optional and separate from model inference.</p><p>Direct model inference would also solve this one-shot task. The framework provides a small agent boundary for learning; multiple agents would not improve the explanation.</p></details>
+      </section>
+
+      <section id="case" aria-labelledby="case-title">
+        <div class="section-heading"><span class="section-number">03</span><div><p class="eyebrow">READ BEFORE CLASSIFYING</p><h2 id="case-title">What do we actually know?</h2></div></div>
+        <div class="case-input"><span class="item-id">SERVICE OUTAGE <span>/ SYNTHETIC FIXTURE</span></span><h3>The requester's report</h3><blockquote id="support-request">The production portal has been unavailable to all users since 9:15 AM. Opening the dashboard returns error 500. We need access restored to continue operations.</blockquote><p>This text comes from the application's Service outage scenario. It reports scope and symptoms; it does not verify them.</p></div>
+        <p class="prediction"><strong>Pause here.</strong> Which category fits? Is the cause known? Would you promise a recovery time based on this text?</p>
+        <div class="comparison-grid">
+          <article class="recorded-card"><p class="eyebrow">EXPECTED SIMULATION OUTPUT / NOT AI</p><h3>Reliability / High</h3><div class="answer-row"><span>Summary</span><strong>Possible service disruption; scope not yet verified.</strong></div><p class="caption">Outage-related words select Reliability. Production-wide scope selects High. These are deterministic teaching rules, not measured model behavior.</p><div class="answer-row"><span>Evidence</span><strong>The entire request above</strong></div><p class="caption">The simulator copies up to 180 characters. This fixture is shorter than that limit.</p></article>
+          <article class="recorded-card second"><p class="eyebrow">SUGGESTION / NOT EXECUTION</p><h3>A next step for an operator</h3><p>Verify service status and scope before escalating to the on-call team.</p><p class="disagreement">No diagnosis. No recovery promise.</p><p class="caption">The draft reply acknowledges the request and says the cause and resolution timeline are not confirmed. The app does not investigate systems or contact anyone.</p></article>
+        </div>
+        <div class="policy-lab">
+          <div><p class="eyebrow">ONE APPLICATION CHECK, MADE VISIBLE</p><h3>Does the quote appear in the request?</h3><p>Edit an evidence excerpt. This browser exercise illustrates the exact, case-sensitive substring check. It does not classify the request or run the .NET validator.</p></div>
+          <fieldset id="evidence-controls" disabled>
+            <legend>Evidence membership experiment</legend>
+            <label for="evidence-text">Proposed evidence excerpt</label>
+            <textarea class="evidence-input" id="evidence-text" rows="3" maxlength="6000" aria-describedby="evidence-help">Opening the dashboard returns error 500.</textarea>
+            <p id="evidence-help" class="caption">Empty evidence, more than 3,000 characters, or text absent from the request is rejected. Matching is case-sensitive; whitespace is not normalized.</p>
+            <div class="example-buttons"><button class="button secondary" type="button" data-evidence="Opening the dashboard returns error 500.">Use an exact quote</button><button class="button secondary" type="button" data-evidence="The database is down.">Try an invented quote</button></div>
+          </fieldset>
+          <div class="route-result" id="evidence-result" role="status" aria-live="polite" aria-atomic="true"><span class="eyebrow">EVIDENCE MEMBERSHIP ONLY</span><h3 id="evidence-title">Quote found, interpretation not verified</h3><p id="evidence-reason">This excerpt appears exactly in the request. It does not establish the cause, scope, or correctness of the proposed response. Human review is still required.</p></div>
+          <p class="error" id="experiment-error" role="alert" hidden></p>
+          <noscript><p class="error">JavaScript is off. The explanation remains readable, but the quote experiment is unavailable.</p></noscript>
+        </div>
+        <aside class="takeaway"><strong>A real quote can support a wrong interpretation.</strong> Evidence membership rejects invented quotations. It does not prove that a database failed, that every user is affected, or that the proposed next step is appropriate.</aside>
+      </section>
+
+      <section id="code" aria-labelledby="code-title">
+        <div class="section-heading"><span class="section-number">04</span><div><p class="eyebrow">FOLLOW THE LIVE PATH, THEN THE SHARED CHECKS</p><h2 id="code-title">The model call is not the whole application.</h2></div></div>
+        <p>In the live branch of <code>POST /api/analyze</code>, the app defines one agent, runs it, and parses its response. Authentication is configured separately: Azure CLI locally or managed identity when hosted.</p>
+        <div class="code-window"><div class="code-heading"><span>Program.cs / live branch</span><span>C#</span></div><pre tabindex="0" aria-label="C# agent invocation"><code data-source="Program.cs">var agent = new AIProjectClient(uri!, credential).AsAIAgent(
+    model: model!, name: "SupportSignal", instructions: Triage.Instructions);
+var response = await agent.RunAsync(JsonSerializer.Serialize(new { untrustedSupportRequest = request.Text }), cancellationToken: timeout.Token);
+proposal = Triage.Parse(response.ToString());</code></pre></div>
+        <div class="code-stops">
+          <article><span class="stop-number">1</span><div><h3>Instructions are not enforcement</h3><p><code>Triage.Instructions</code> asks for JSON and says the request is untrusted. This lab does not use a model-enforced JSON schema. The application must still reject bad output.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/src/SupportSignal/Program.cs">Read the instructions and endpoint</a></div></article>
+          <article><span class="stop-number">2</span><div><h3>Validate both provider paths</h3><p>After simulation or live inference, <code>Triage.Validate</code> checks allowed category and priority values, required field lengths, and evidence membership. Valid JSON alone is insufficient.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/tests/SupportSignal.Checks/Program.cs">Read the offline contract checks</a></div></article>
+          <article><span class="stop-number">3</span><div><h3>Make failures visible</h3><p>The live branch has a cancellation deadline. An invalid provider result stays an error. It is never replaced silently with the deterministic simulation.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/docs/troubleshooting.md">Read the failure paths</a></div></article>
+          <article><span class="stop-number">4</span><div><h3>Keep original output separate from edits</h3><p>Browser code clears approval after changes. Export preserves the original proposal and adds <code>humanEdits</code>. Local approval is not a command to send the reply.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/src/SupportSignal/wwwroot/app.js">Read review and export behavior</a></div></article>
+        </div>
+        <div class="code-window"><div class="code-heading"><span>Program.cs / Triage.Validate</span><span>C#</span></div><pre tabindex="0" aria-label="C# evidence membership check"><code data-source="Program.cs">if (!input.Contains(p.Evidence, StringComparison.Ordinal)) throw new InvalidDataException("Evidence is not in the request");</code></pre></div>
+        <p class="caption">This line is deliberately small. It proves membership, not meaning. The browser experiment above illustrates this rule; the complete validator also checks the other proposal fields.</p>
+      </section>
+
+      <section id="present" aria-labelledby="present-title">
+        <div class="section-heading"><span class="section-number">05</span><div><p class="eyebrow">YOUR LIVE PRESENTATION</p><h2 id="present-title">Start with the report. End with the boundary.</h2></div></div>
+        <ol class="agenda">
+          <li><span>00:00 / 2 MIN</span><div><h3>Name the problem and mode</h3><p>"We want a reviewable proposal, not an autonomous support action." State that the displayed result is deterministic simulation, not a model recording.</p></div></li>
+          <li><span>02:00 / 4 MIN</span><div><h3>Read the outage case</h3><p>Ask what is known. Show the expected category and priority, then try the invented quote. Explain why a matching quote still does not prove a diagnosis.</p></div></li>
+          <li><span>06:00 / 4 MIN</span><div><h3>Open the C#</h3><p>Show the live agent invocation and the shared validator. The agent definition belongs to the app; inference belongs to Foundry. Simulation bypasses the agent.</p></div></li>
+          <li><span>10:00 / 3 MIN</span><div><h3>Demonstrate review in the separate app</h3><p>Analyze Service outage in simulation mode. Edit the reply, approve it, then edit again to clear approval. Export and point out originals versus human edits.</p></div></li>
+          <li><span>13:00 / 2 MIN</span><div><h3>Close with what remains unproven</h3><p>"We validated the shape and the quotation. A person must still judge the interpretation." Leave room for a question.</p></div></li>
+        </ol>
+        <details><summary>Launch the separate .NET app for the review and export steps</summary><p>From the repository root, with PowerShell 7 and the exact SDK from <code>global.json</code> installed:</p><pre tabindex="0" aria-label="PowerShell Lab 001 startup"><code>.\scripts\Test-Prerequisites.ps1
+.\Start-Demo.ps1 -Lab 1 -Offline</code></pre><p>Open <code>http://localhost:5187</code>. Select <strong>Service outage</strong> and <strong>Analyze request</strong>. Expect <strong>Reliability / Priority high</strong> with a simulation label. No model or MAF runs. Rehearse before the event so restore and compilation do not happen on stage.</p><p>Editing a reply or next step clears approval. Changing the input or mode clears the proposal. Reload loses browser state. Stop the server with Ctrl+C and remove exported synthetic JSON when no longer needed.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/README.md">Prerequisites, live setup, costs, and cleanup</a></details>
+        <aside class="takeaway"><strong>Presenting live is not the same as running live inference.</strong> For an actual model call, select your own deployment and authorize consumption first. Show a failure honestly; never relabel simulation as a successful Foundry response.</aside>
+      </section>
+
+      <section id="evidence" aria-labelledby="evidence-title-heading">
+        <div class="section-heading"><span class="section-number">06</span><div><p class="eyebrow">WHAT THIS DEMO DOES NOT PROVE</p><h2 id="evidence-title-heading">Keep the claim smaller than the evidence.</h2></div></div>
+        <div class="limits-grid">
+          <article><h3>Simulation is not AI quality</h3><p>Keyword rules reproduce the workflow but can mishandle negation or mixed intent. Their output and timing do not measure a model.</p></article>
+          <article><h3>Instructions are not a guarantee</h3><p>Asking the model to ignore embedded commands is useful guidance, not proof against every adversarial request. Inputs and outputs remain untrusted.</p></article>
+          <article><h3>Local approval is not an audit trail</h3><p>The app's review state is in browser memory. It is not persisted or an identity-verified approval. Nothing is sent.</p></article>
+          <article><h3>A past run is not the next run</h3><p>The repository records dated live observations separately. This website makes no new inference call and does not verify your credentials, access, or deployment.</p></article>
+        </div>
+        <div class="source-panel"><h3>Sources &amp; version boundary</h3><p>The sample pins <strong>.NET SDK 11.0.100-rc.1.26425.128 (RC1)</strong> and <strong>Microsoft.Agents.AI.Foundry 1.24.0-preview.261006.1</strong>. The connector is preview; this guide neither upgrades it nor claims it is generally available.</p><ul>
+          <li><a href="https://learn.microsoft.com/en-us/agent-framework/integrations/by-component/model-providers/microsoft-foundry?wt.mc_id=AI-MVP-5004753">Microsoft Learn: Foundry model provider</a><span>Code-first Responses agents, <code>AsAIAgent</code>, and the distinction from service-managed agents. Accessed October 15, 2026.</span></li>
+          <li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/docs/guided-lab.md">Full guided lab</a><span>Separate simulation and live paths, the exact synthetic fixture, and review exercises.</span></li>
+          <li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/01-support-signal/docs/verification.md">Verification record</a><span>Dated evidence and clean-environment limitations, not a production-readiness claim.</span></li>
+        </ul><p>The quote exercise and presentation sequence are this project's teaching design. The review rule is application behavior, not a framework-provided approval guarantee.</p></div>
+        <p class="closing">Validate what you can.<br><em>Expose what you cannot.</em></p>
+      </section>
+      <nav class="lab-pagination" aria-label="Other labs"><a href="../../index.html"><span>BACK TO THE CATALOG</span>All field guides</a><a href="../002/index.html"><span>NEXT / LAB 002</span>Bid Review Queue</a></nav>
+      <footer><span>Foundry Field Notes / Lab 001</span><p>Independent educational project. Not a Microsoft product or a production-ready application.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/LICENSE">MIT license</a></footer>
+    </main>
+  </div>
+</body>
+</html>

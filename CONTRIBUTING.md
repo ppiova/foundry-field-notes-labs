@@ -12,9 +12,11 @@ Use US English and synthetic fixtures. For a reproducible bug report, include th
 
 ## Verification and review
 
-Run `pwsh ./scripts/Validate.ps1` with the pinned SDK. Check UI changes in a browser, including narrow layouts and keyboard access. Record commands and actual results in the PR template; state what was not exercised. Record live validation separately from simulation and replay. Live checks require your explicitly selected deployment and authorized consumption; no live call is required for the offline suite.
+Run `pwsh ./scripts/Validate.ps1` with the pinned SDK and Node.js 24.15.0 for the static presentation checks (no npm packages). Check UI changes in a browser, including narrow layouts and keyboard access. Record commands and actual results in the PR template; state what was not exercised. Record live validation separately from simulation and replay. Live checks require your explicitly selected deployment and authorized consumption; no live call is required for the offline suite.
 
 When changing a browser guide, edit its Markdown source and regenerate it with `./scripts/Build-SupportGuide.ps1` or `./scripts/Build-BidReviewGuide.ps1`. Do not edit the generated HTML independently. Cite official Microsoft sources and access dates for product claims, and preserve accurate preview labels.
+
+The separate [static field guide portal](docs/presentation-site.md) under `docs/site` is authored as HTML/CSS/JavaScript, with shared styles and navigation for both lab guides. Only `labs/002/case-data.js` is generated, using `./scripts/Build-BidPresentation.ps1`. Its manual Pages workflow requires explicit publication approval and is not part of ordinary validation. Update the publication allowlist and catalog checks when adding an approved guide; planned labs must remain labeled as planned.
 
 ## New labs and project boundaries
 

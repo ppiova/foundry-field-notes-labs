@@ -27,6 +27,8 @@ You do not need access to a maintainer-hosted app. Hosting uses the repository's
 
 ### Guided learning path
 
+For a visual .NET presentation, open the [Lab 001 field guide](../../docs/site/labs/001/index.html) or the [full catalog](../../docs/site/index.html). The static guide includes an evidence-membership illustration, not model inference or execution of the simulator. See [preview and publication instructions](../../docs/presentation-site.md).
+
 Start with the [step-by-step service-outage lab](docs/guided-lab.md). Its live walkthrough and separate simulation exercise have distinct instructions and evidence. The UI's **Open the guided lab** link opens the same walkthrough at `/guide.html`.
 
 The Markdown guide is the source of truth. After editing it, run `./scripts/Build-SupportGuide.ps1` to refresh the browser copy; `-Check` verifies they match. Simulation evidence is separate from the recorded Azure run verified on 2026-10-14.

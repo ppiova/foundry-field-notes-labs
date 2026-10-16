@@ -5,6 +5,10 @@ Push-Location $root
 try {
     & (Join-Path $PSScriptRoot 'Build-SupportGuide.ps1') -Check
     & (Join-Path $PSScriptRoot 'Build-BidReviewGuide.ps1') -Check
+    & (Join-Path $PSScriptRoot 'Build-BidPresentation.ps1') -Check
+    if (!(Get-Command node -ErrorAction SilentlyContinue)) { throw 'Presentation checks require Node.js 24.15.0 (pinned in CI).' }
+    & node --test scripts/tests/site.test.cjs samples/01-support-signal/tests/presentation.test.cjs samples/02-bid-review-queue/tests/presentation.test.cjs
+    if ($LASTEXITCODE -ne 0) { throw 'Static presentation checks failed.' }
     # Most deployment scripts cannot run without Azure, so prove that every script parses; the preview and the platform
     # check also run against a fake Azure CLI.
     foreach ($script in Get-ChildItem -Path scripts, infra, samples, Start-Demo.ps1 -Recurse -Filter *.ps1) {

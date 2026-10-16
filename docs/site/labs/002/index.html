@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A visual .NET walkthrough of bounded AI decisions, application policy, and human review. Follow Lab 002 with recorded Foundry responses.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Decisions, not chat | Foundry Field Notes</title>
+  <link rel="stylesheet" href="../../styles.css">
+  <script src="../../navigation.js" defer></script>
+  <script src="./case-data.js" defer></script>
+  <script src="./guide.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../../index.html"><span class="brand-mark" aria-hidden="true">FN</span>Foundry Field Notes</a>
+    <span class="header-label">LAB 002 / .NET FIELD GUIDE</span>
+    <a href="https://github.com/ppiova/foundry-field-notes-labs">View repository <span aria-hidden="true">&#8599;</span></a>
+  </header>
+  <div class="page-layout">
+    <nav class="chapter-nav" aria-label="Guide chapters">
+      <a class="catalog-link" href="../../index.html">All labs <span aria-hidden="true">&#8599;</span></a>
+      <p class="eyebrow">THE WALKTHROUGH</p>
+      <a href="#problem"><span>01</span> The problem</a>
+      <a href="#boundary"><span>02</span> Who decides?</a>
+      <a href="#case"><span>03</span> One recorded case</a>
+      <a href="#code"><span>04</span> Follow the C#</a>
+      <a href="#present"><span>05</span> Present the lab</a>
+      <a href="#evidence"><span>06</span> Evidence &amp; limits</a>
+      <p class="nav-note">For developers who know C# and JSON.<br>No Azure account needed for this guide.</p>
+    </nav>
+    <main id="main">
+      <section class="hero" id="problem" aria-labelledby="hero-title">
+        <p class="eyebrow">BID REVIEW QUEUE <span class="divider">/</span> 15-MINUTE WALKTHROUGH</p>
+        <h1 id="hero-title">Decisions,<br><em>not chat.</em></h1>
+        <p class="lead">Let a model classify. Let your .NET application decide when to trust, escalate, or ask a person.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#case">Follow item 13 <span aria-hidden="true">&#8594;</span></a>
+          <a class="button secondary" href="#code">Go to the C#</a>
+        </div>
+        <div class="mode-banner"><span class="status-dot" aria-hidden="true"></span><div><strong>Static guide. Recorded evidence. No live inference.</strong><br>Uses a synthetic case and responses saved on October 14, 2026. This page does not run the .NET app or call Azure.</div></div>
+        <div class="problem-grid">
+          <div><p class="eyebrow">THE BUSINESS PROBLEM</p><h2>35 lines. Not 35 easy decisions.</h2></div>
+          <p>An estimator needs to map bid items to utility systems and work types before pricing. Some descriptions are clear; others need judgment. The goal is a reviewable classification, <strong>not awarding a contract, pricing a bid, or sending it.</strong></p>
+        </div>
+      </section>
+
+      <section id="boundary" aria-labelledby="boundary-title">
+        <div class="section-heading"><span class="section-number">02</span><div><p class="eyebrow">THE RESPONSIBILITY BOUNDARY</p><h2 id="boundary-title">The model answers. Your code owns the rule.</h2></div></div>
+        <div class="flow-grid">
+          <article class="flow-card"><span class="owner app">APPLICATION / C#</span><h3>01. Define</h3><p>Build the input, questions, and every allowed option. Include a way to abstain.</p><code>PayItemQuestions.For</code></article>
+          <article class="flow-card"><span class="owner model">FOUNDRY / MODEL</span><h3>02. Classify</h3><p>Microsoft-Decision-1 returns a choice and per-option probabilities, not a written rationale.</p><code>state + questions</code></article>
+          <article class="flow-card"><span class="owner app">APPLICATION / C#</span><h3>03. Validate &amp; route</h3><p>Check the response contract. Apply the threshold. Ask a second model only for eligible uncertain lines.</p><code>ReviewPolicy.Evaluate</code></article>
+          <article class="flow-card"><span class="owner person">PERSON / REVIEW</span><h3>04. Resolve</h3><p>Review unresolved cases. Changing an answer invalidates its previous approval.</p><code>Review, correct, approve</code></article>
+        </div>
+        <p class="caption">These calls are orchestrated by the sample, not by an automatic Foundry workflow. The lab uses Blazor Server and a Minimal API with shared services; GitHub Pages hosts only this static guide.</p>
+        <details class="teaching-note"><summary>Why no agent framework?</summary><p>Each item needs bounded classification, with no autonomous tools, memory, or conversation. A model cascade with human review is enough. Interfaces separate live calls from replay; an agent framework would add orchestration this task does not need.</p></details>
+      </section>
+
+      <section id="case" aria-labelledby="case-title">
+        <div class="section-heading"><span class="section-number">03</span><div><p class="eyebrow">ONE CASE BEFORE THE WHOLE DATASET</p><h2 id="case-title">Would you accept item 13?</h2></div></div>
+        <div class="case-input"><span class="item-id">PAY ITEM 13 <span>/ SYNTHETIC</span></span><h3>Sanitary Sewer Bypass Pumping, Complete</h3><p>Unit: LS (lump sum). The model receives the number, description, and unit. Quantities and prices stay in the .NET application.</p></div>
+        <p class="prediction"><strong>Pause here.</strong> Is this gravity sewer work or force main work? The application offers those categories; the model cannot introduce a new accepted category.</p>
+        <div class="comparison-grid">
+          <article class="recorded-card">
+            <p class="eyebrow">FIRST MODEL / RECORDED</p>
+            <h3>Microsoft-Decision-1</h3>
+            <div class="answer-row"><span>System</span><strong>Force main</strong></div>
+            <div class="probability"><strong>0.7078</strong><span>selected-option probability<br>not measured accuracy</span></div>
+            <div class="probability-track" aria-hidden="true"><span></span></div>
+            <div class="answer-row"><span>Work type</span><strong>Support work</strong></div>
+            <p class="caption">Work-type probability: 0.9954. The weakest selected probability drives the threshold rule.</p>
+          </article>
+          <article class="recorded-card second">
+            <p class="eyebrow">SECOND OPINION / RECORDED</p>
+            <h3>gpt-6-luna</h3>
+            <div class="answer-row"><span>System</span><strong>Sanitary gravity</strong></div>
+            <p class="disagreement">Different system. Same work type.</p>
+            <div class="answer-row"><span>Work type</span><strong>Support work</strong></div>
+            <p class="caption">The second opinion supplies choices, not a replacement probability. Disagreement remains evidence even if you lower the threshold.</p>
+          </article>
+        </div>
+        <div class="policy-lab">
+          <div><p class="eyebrow">CHANGE THE POLICY, NOT THE EVIDENCE</p><h3>Where would you draw the line?</h3><p>The initial threshold is 0.90. Explore only this recorded case; this is not the full app's review queue.</p></div>
+          <fieldset id="policy-controls" disabled>
+            <legend>Threshold experiment</legend>
+            <label class="slider-label" for="threshold">Acceptance threshold <output id="threshold-value" for="threshold">0.90</output></label>
+            <input id="threshold" type="range" min="50" max="99" value="90" step="1" aria-describedby="threshold-help">
+            <p id="threshold-help" class="caption">0.50 to 0.99. Try 0.70, then return to 0.90. No model call is made.</p>
+            <label class="check-label"><input id="second-opinion" type="checkbox" checked> Include the already-recorded second opinion</label>
+            <button class="button secondary" id="reset-policy" type="button">Reset to 0.90</button>
+          </fieldset>
+          <div class="route-result" id="route-result" role="status" aria-live="polite" aria-atomic="true">
+            <span class="eyebrow">APPLICATION ROUTE AT 0.90</span>
+            <h3 id="route-title">A person must review</h3>
+            <p id="route-reason">The system probability is below 0.90 and the recorded models disagree. Neither a valid response nor a second opinion proves correctness.</p>
+          </div>
+          <p id="experiment-error" class="error" role="alert" hidden></p>
+          <noscript><p class="error">JavaScript is off. The recorded result at 0.90 remains readable; the threshold experiment is unavailable.</p></noscript>
+        </div>
+        <details><summary>Inspect the original choices and probabilities</summary><p>A reduced view of the bundled recordings, not a new response. The separate service <code>confidence</code> field is not used by the threshold rule.</p><pre><code id="recorded-json">Enable JavaScript to inspect the recorded JSON, or open the recording in the repository below.</code></pre><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/Data/recordings/demo-run.jsonl">Open the decision recording</a></details>
+        <aside class="takeaway"><strong>Valid is not the same as correct.</strong> Contract checks reject invalid shapes and unoffered options. They cannot prove that bypass pumping belongs to the selected system.</aside>
+      </section>
+
+      <section id="code" aria-labelledby="code-title">
+        <div class="section-heading"><span class="section-number">04</span><div><p class="eyebrow">FAMILIAR .NET, A PROBABILISTIC DEPENDENCY</p><h2 id="code-title">Follow one decision through C#.</h2></div></div>
+        <p>Start with the existing endpoint. Blazor calls the same service and policies directly; the UI does not need an HTTP round trip to this endpoint.</p>
+        <div class="code-window"><div class="code-heading"><span>Program.cs / POST /api/decide</span><span>C#</span></div><pre><code data-source="Program.cs">var outcome = await decisions.DecideAsync(request.Item, request.Mode, request.ReverseOptions, ct);
+var result = outcome.Result;
+var review = ReviewPolicy.Evaluate(request.Item, result, outcome.Questions, request.Threshold);</code></pre></div>
+        <div class="code-stops">
+          <article><span class="stop-number">1</span><div><h3>Define a closed contract</h3><p><code>PayItemQuestions.For</code> creates the questions and options. <code>unclear</code> permits abstention. A span copied from text can still be the wrong span.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/PayItems.cs">Read PayItems.cs</a></div></article>
+          <article><span class="stop-number">2</span><div><h3>Treat the model as an external dependency</h3><p><code>IDecisionProvider</code> separates Foundry from replay. The service uses explicit mode selection, cancellation, timeouts, and visible errors. A failed live request never becomes a silent replay.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/DecisionService.cs">Read DecisionService.cs</a></div></article>
+          <article><span class="stop-number">3</span><div><h3>Validate before applying policy</h3><p><code>DecisionWire.ParseResponse</code> checks each question, offered choice, and finite probability. Every offered option must be scored, with a sum of 1 within the application's 0.02 tolerance.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/Decisions.cs">Read Decisions.cs</a></div></article>
+          <article><span class="stop-number">4</span><div><h3>Keep business rules in ordinary C#</h3><p>The rule accepts only when every selected probability meets the threshold, every choice is most probable, and none is <code>unclear</code>. Reviewer edits require approval again.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/Review.cs">Read Review.cs</a></div></article>
+        </div>
+        <details><summary>Add the second opinion after the basic flow is understood</summary><p>Only eligible lines below the threshold reach the second model. Abstentions and non-top choices go to a person instead. All choices must agree for acceptance by agreement; a failed second opinion leaves the line with a person.</p><div class="code-window"><div class="code-heading"><span>Program.cs / selective escalation</span><span>C#</span></div><pre><code data-source="Program.cs">if (request.SecondOpinion &amp;&amp; EscalationPolicy.Eligible(result, outcome.Questions, request.Threshold))
+{
+    try { opinion = await decisions.SecondOpinionAsync(request.Item, outcome.Questions, request.Mode, ct); }
+    catch (DecisionFailure failure) { secondOpinionError = failure.Message; }
+}</code></pre></div><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/src/BidReviewQueue/Escalation.cs">Read Escalation.cs</a></details>
+        <p class="caption">A model cascade with human review describes this sample's design, not a built-in Foundry approval feature. The JavaScript experiment above illustrates only item 13; the .NET policies remain the application implementation.</p>
+      </section>
+
+      <section id="present" aria-labelledby="present-title">
+        <div class="section-heading"><span class="section-number">05</span><div><p class="eyebrow">YOUR LIVE PRESENTATION</p><h2 id="present-title">One story. Five stops.</h2></div></div>
+        <ol class="agenda">
+          <li><span>00:00 / 2 MIN</span><div><h3>Start with the problem</h3><p>"We are classifying bid lines, not approving contracts." Introduce the application, model, and person as separate responsibilities.</p></div></li>
+          <li><span>02:00 / 4 MIN</span><div><h3>Follow item 13</h3><p>Ask the audience to predict. Reveal the recorded choices, their disagreement, and the review route. Name the recorded mode before showing the results.</p></div></li>
+          <li><span>06:00 / 4 MIN</span><div><h3>Open the C#</h3><p>Show the endpoint, the parser, and the policy. "The model is a dependency. Validation and business rules are still our job."</p></div></li>
+          <li><span>10:00 / 3 MIN</span><div><h3>Change policy; then demonstrate review in the app</h3><p>Move the threshold without a model call. In the separate .NET app, approve a line, edit an answer, and show approval clear. Export originals separately from edits.</p></div></li>
+          <li><span>13:00 / 2 MIN</span><div><h3>Close with limits, not a success rate</h3><p>"Two models can be wrong together. Choose a threshold on representative labeled data, not because 0.90 sounds reassuring."</p></div></li>
+        </ol>
+        <details><summary>Launch the separate .NET app for the review and export steps</summary><p>From a repository checkout in PowerShell 7, with the exact SDK from <code>global.json</code> installed:</p><pre><code>.\scripts\Test-Prerequisites.ps1
+.\Start-Demo.ps1 -Lab 2 -Offline</code></pre><p>Open <code>http://localhost:5190</code>. At 0.90 with recorded second opinions enabled, the bundled demo expects <strong>35 decided: 24 by rule, 8 by agreement, 3 awaiting review.</strong> Confirm these during rehearsal; new live calls need not reproduce them.</p><p>Restore and compile before presenting. <code>-Offline</code> disables live configuration, not network access for package restore. Stop with Ctrl+C and remove exported synthetic JSON when no longer needed.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/README.md">Prerequisites, live setup, costs, and cleanup</a></details>
+        <aside class="takeaway"><strong>If a live call fails, say it failed.</strong> Switch explicitly to recorded evidence. This guide is not a successful retry, and no Azure infrastructure change is needed to display it.</aside>
+      </section>
+
+      <section id="evidence" aria-labelledby="evidence-title">
+        <div class="section-heading"><span class="section-number">06</span><div><p class="eyebrow">WHAT THIS DEMO DOES NOT PROVE</p><h2 id="evidence-title">Keep the evidence in view.</h2></div></div>
+        <div class="limits-grid">
+          <article><h3>Probability is not accuracy</h3><p>A 0.90 prediction does not establish 90% correctness. Calibration is measured across comparable labeled cases, not inferred from one answer.</p></article>
+          <article><h3>Agreement is a policy</h3><p>Two models can share an error. Agreement does not create a new calibrated probability or replace meaningful human review.</p></article>
+          <article><h3>Replay is not availability</h3><p>These October 14, 2026 recordings do not establish current Foundry availability, latency, pricing, or model quality on your workload.</p></article>
+          <article><h3>This is not production approval</h3><p>The app keeps review state in its Blazor session. It is not a durable audit trail. This guide stores no approvals and sends no bid data.</p></article>
+        </div>
+        <div class="source-panel">
+          <h3>Sources &amp; version boundary</h3>
+          <p>The sample targets <strong>.NET 11 RC1</strong>, Microsoft-Decision-1 version <strong>1</strong>, and the Microsoft provider's <code>v1/systemone</code> API. The sample treats the decision model as <strong>preview</strong>: its recorded catalog observation and documentation signals differ. See the source register rather than assuming general availability.</p>
+          <ul>
+            <li><a href="https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision?wt.mc_id=AI-MVP-5004753">Microsoft Learn: deploy and use Microsoft-Decision-1</a><span>Typed decisions, probabilities, and workload-specific evaluation. Accessed October 15, 2026.</span></li>
+            <li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/docs/sources.md">Lab source register</a><span>Official references, API versions, preview uncertainty, and measured observations.</span></li>
+            <li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/docs/verification.md">Verification record</a><span>Dated runs and limitations. Synthetic evaluation is not an industry benchmark.</span></li>
+            <li><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/samples/02-bid-review-queue/docs/code-walkthrough.md">Full code walkthrough</a><span>Follow the request, authentication, validation, policy, and second opinion.</span></li>
+          </ul>
+        </div>
+        <p class="closing">Build it. Understand it.<br><em>Make it reproducible.</em></p>
+      </section>
+      <nav class="lab-pagination" aria-label="Other labs"><a href="../001/index.html"><span>PREVIOUS / LAB 001</span>Support Signal</a><a href="../../index.html#next"><span>EXPLORE THE ROADMAP</span>What's next?</a></nav>
+      <footer><span>Foundry Field Notes / Lab 002</span><p>Independent educational project. Not a Microsoft product or a production-ready application.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/LICENSE">MIT license</a></footer>
+    </main>
+  </div>
+</body>
+</html>

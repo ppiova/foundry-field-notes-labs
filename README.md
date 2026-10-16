@@ -15,6 +15,8 @@ For developers comfortable with basic C# and JSON. The current labs use .NET; yo
 
 Follow Lab 001 for the application-validation boundary, then Lab 002 for probability-based decisions. You can also start directly with Lab 002: it does not require running Lab 001.
 
+**Learning or presenting to .NET developers?** Open the [visual field guide portal](docs/site/index.html): a catalog, guides for Labs 001 and 002, and clearly labeled upcoming labs. See the [preview and GitHub Pages instructions](docs/presentation-site.md). It is a static learning site, not a hosted version of the apps; publication requires separate owner approval.
+
 **Why Microsoft-Decision-1?** Lab 002 explores a different contract from chat: the application offers choices, the model returns choices and probabilities, and the application owns acceptance and review. Follow [one recorded answer from request to review](samples/02-bid-review-queue/docs/decision-model.md), including why a valid response or agreement between two models does not prove correctness.
 
 ## Coming soon
@@ -80,7 +82,7 @@ Simulation does not measure AI quality. Replay does not establish current Foundr
 
 ```text
 .github/                         CI and pull request template
-docs/                            Repository standards and roadmap
+docs/                            Repository standards, roadmap, and static field guide portal
 infra/                           Lab platform templates and the deployment script for your own subscription
 samples/01-support-signal/
   README.md                      Setup and expected output
@@ -102,7 +104,7 @@ global.json                      Pinned SDK
 
 ## Validation
 
-Stop the apps before building on Windows. With PowerShell 7:
+Stop the apps before building on Windows. With PowerShell 7 and Node.js 24.15.0 (for the static presentation checks, no npm packages):
 
 ```powershell
 ./scripts/Validate.ps1
@@ -112,8 +114,8 @@ Runs locked restore, build, offline checks for both labs, the recorded evaluatio
 
 ## Guides
 
-- Lab 001: [architecture](samples/01-support-signal/docs/architecture.md) · [troubleshooting](samples/01-support-signal/docs/troubleshooting.md) · [demo](samples/01-support-signal/docs/demo-script.md) · [verification](samples/01-support-signal/docs/verification.md)
-- Lab 002: [overview](samples/02-bid-review-queue/docs/overview.md) · [code walkthrough](samples/02-bid-review-queue/docs/code-walkthrough.md) · [architecture](samples/02-bid-review-queue/docs/architecture.md) · [troubleshooting](samples/02-bid-review-queue/docs/troubleshooting.md) · [demo](samples/02-bid-review-queue/docs/demo-script.md) · [verification](samples/02-bid-review-queue/docs/verification.md) · [sources](samples/02-bid-review-queue/docs/sources.md)
+- Lab 001: [visual field guide](docs/site/labs/001/index.html) · [architecture](samples/01-support-signal/docs/architecture.md) · [troubleshooting](samples/01-support-signal/docs/troubleshooting.md) · [demo](samples/01-support-signal/docs/demo-script.md) · [verification](samples/01-support-signal/docs/verification.md)
+- Lab 002: [visual field guide](docs/site/labs/002/index.html) · [overview](samples/02-bid-review-queue/docs/overview.md) · [code walkthrough](samples/02-bid-review-queue/docs/code-walkthrough.md) · [architecture](samples/02-bid-review-queue/docs/architecture.md) · [troubleshooting](samples/02-bid-review-queue/docs/troubleshooting.md) · [demo](samples/02-bid-review-queue/docs/demo-script.md) · [verification](samples/02-bid-review-queue/docs/verification.md) · [sources](samples/02-bid-review-queue/docs/sources.md)
 
 ## Contributing and maintaining
 

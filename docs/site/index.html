@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hands-on .NET field guides for reviewable AI applications with Microsoft Foundry. Explore two labs without Azure and see what is planned next.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Build it. Understand it. | Foundry Field Notes</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./navigation.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="./index.html"><span class="brand-mark" aria-hidden="true">FN</span>Foundry Field Notes</a>
+    <span class="header-label">HANDS-ON .NET / FIELD GUIDES</span>
+    <a href="https://github.com/ppiova/foundry-field-notes-labs">View repository <span aria-hidden="true">&#8599;</span></a>
+  </header>
+  <div class="page-layout">
+    <nav class="chapter-nav" aria-label="Portal sections">
+      <p class="eyebrow">THE FIELD NOTES</p>
+      <a href="#start"><span>01</span> Start here</a>
+      <a href="#labs"><span>02</span> Available labs</a>
+      <a href="#approach"><span>03</span> How to learn</a>
+      <a href="#next"><span>04</span> Coming next</a>
+      <a href="#boundaries"><span>05</span> Before going live</a>
+      <p class="nav-note">Independent learning.<br>Concrete examples.<br>Explicit limits.</p>
+    </nav>
+    <main id="main">
+      <section class="hero" id="start" aria-labelledby="hero-title">
+        <p class="eyebrow">MICROSOFT FOUNDRY <span class="divider">/</span> FOR .NET DEVELOPERS</p>
+        <h1 id="hero-title">Build it.<br>Understand it.<br><em>Make it reproducible.</em></h1>
+        <p class="lead">Go beyond the model call. Build applications that validate answers, expose uncertainty, and keep people in control.</p>
+        <div class="hero-actions"><a class="button primary" href="#labs">Choose a lab <span aria-hidden="true">&#8594;</span></a><a class="button secondary" href="./labs/001/index.html">Start with Lab 001</a></div>
+        <div class="mode-banner"><span class="status-dot" aria-hidden="true"></span><div><strong>Read, explore, and present. No Azure account required.</strong><br>These are static learning guides, not hosted .NET applications. Browser exercises make no model calls. Each lab clearly identifies its offline path.</div></div>
+        <div class="problem-grid"><div><p class="eyebrow">FOR DEVELOPERS WHO KNOW C# AND JSON</p><h2>One problem.<br>One clear boundary.</h2></div><p>Start with a synthetic case. Follow it from input to output, through application checks, and into human review. Then open the C# and reproduce the behavior in your own checkout.</p></div>
+      </section>
+
+      <section id="labs" aria-labelledby="labs-title">
+        <div class="section-heading"><span class="section-number">02</span><div><p class="eyebrow">AVAILABLE NOW</p><h2 id="labs-title">Two labs. Two different contracts.</h2></div></div>
+        <p class="catalog-intro">Start with Lab 001 for validated proposals, then Lab 002 for probability-based decisions. Either guide can be followed independently.</p>
+        <div class="catalog-grid">
+          <article class="lab-card" data-lab="001" data-status="available">
+            <div class="card-top"><span class="lab-number">001</span><span class="availability">AVAILABLE GUIDE</span></div>
+            <h3>Support Signal</h3>
+            <p>Turn a support request into a proposal a person can inspect, correct, and approve.</p>
+            <div class="mode-label"><strong>Offline path: deterministic simulation</strong>No model or Agent Framework runs. This is not replay.</div>
+            <ul><li>One code-defined agent in the live application</li><li>Output contracts and exact quoted evidence</li><li>Human edits that invalidate approval</li></ul>
+            <a class="button primary" href="./labs/001/index.html">Explore Lab 001 <span aria-hidden="true">&#8594;</span></a>
+          </article>
+          <article class="lab-card" data-lab="002" data-status="available">
+            <div class="card-top"><span class="lab-number">002</span><span class="availability">AVAILABLE GUIDE</span></div>
+            <h3>Bid Review Queue</h3>
+            <p>Use bounded choices and probabilities to decide which bid items need a person.</p>
+            <div class="mode-label"><strong>Offline path: recorded Foundry responses</strong>Replay of saved model outputs. No new inference.</div>
+            <ul><li>Microsoft-Decision-1 and application-owned options</li><li>Threshold rules and a selective second opinion</li><li>Agreement is a policy, not proof of correctness</li></ul>
+            <a class="button primary" href="./labs/002/index.html">Explore Lab 002 <span aria-hidden="true">&#8594;</span></a>
+          </article>
+        </div>
+        <p class="caption">The guides include the problem, responsibility boundary, one case, C# entry points, a presentation route, and evidence limits. The apps and their setup instructions live in the repository.</p>
+      </section>
+
+      <section id="approach" aria-labelledby="approach-title">
+        <div class="section-heading"><span class="section-number">03</span><div><p class="eyebrow">A REPEATABLE LEARNING PATH</p><h2 id="approach-title">Predict. Inspect. Change one thing.</h2></div></div>
+        <div class="flow-grid">
+          <article class="flow-card"><span class="owner person">01 / THE PROBLEM</span><h3>Make a prediction</h3><p>Read one synthetic input before looking at the answer. Separate what was reported from what has been verified.</p></article>
+          <article class="flow-card"><span class="owner model">02 / THE OUTPUT</span><h3>Identify what ran</h3><p>Simulation, replay, and live inference are different. Know which one produced the output before interpreting it.</p></article>
+          <article class="flow-card"><span class="owner app">03 / THE APPLICATION</span><h3>Trace the C#</h3><p>Find the input contract, provider boundary, output checks, and business rule. Valid structure does not establish semantic correctness.</p></article>
+          <article class="flow-card"><span class="owner person">04 / THE REVIEW</span><h3>Test the boundary</h3><p>Change a quote, a threshold, or a reviewed answer. Observe what changes and what still requires human judgment.</p></article>
+        </div>
+        <aside class="takeaway"><strong>The reusable pattern is responsibility, not a particular SDK.</strong> Foundry supplies inference. Your application owns validation and review policy. A person resolves what remains uncertain.</aside>
+        <details><summary>What do I need to run the actual applications?</summary><p>The website itself needs only a browser. The .NET apps need Git, PowerShell 7, and the exact SDK in <code>global.json</code>: <strong>.NET 11 RC1</strong>. The Lab 001 Foundry connector and Lab 002 decision model are treated as preview in this snapshot.</p><pre tabindex="0" aria-label="PowerShell offline startup commands"><code>.\scripts\Test-Prerequisites.ps1
+.\Start-Demo.ps1 -Lab 1 -Offline
+# Or, in a separate terminal:
+.\Start-Demo.ps1 -Lab 2 -Offline</code></pre><p>Lab 001 opens at <code>http://localhost:5187</code>; Lab 002 at <code>http://localhost:5190</code>. Package restore can require internet even in offline mode. Stop each server with Ctrl+C.</p><a href="https://github.com/ppiova/foundry-field-notes-labs#quickstart">Full prerequisites and quickstart</a></details>
+      </section>
+
+      <section id="next" aria-labelledby="next-title">
+        <div class="section-heading"><span class="section-number">04</span><div><p class="eyebrow">COMING NEXT / NOT IMPLEMENTED</p><h2 id="next-title">Continue the bid-review story.</h2></div></div>
+        <p class="catalog-intro">The proposed sequence adds one lesson at a time. These are planned labs, not available guides, release dates, or authorization to provision services.</p>
+        <div class="roadmap-grid">
+          <article class="roadmap-card" data-lab="003" data-status="planned"><p class="eyebrow">003 / NEXT PLANNED LAB</p><h3>Bid Clarification Desk</h3><p>Draft a clarification for a line that needs review. Keep a person in control, and send nothing.</p></article>
+          <article class="roadmap-card" data-lab="004" data-status="planned"><p class="eyebrow">004 / PLANNED</p><h3>Hosted Bid Reviewer</h3><p>Explore the boundary between application code, an agent hosted in Foundry, and its tools.</p></article>
+          <article class="roadmap-card" data-lab="005" data-status="planned"><p class="eyebrow">005 / PLANNED</p><h3>Overnight Bid Watch</h3><p>Explore scheduled review and how reviewer corrections could inform later work.</p></article>
+          <article class="roadmap-card" data-lab="006" data-status="planned"><p class="eyebrow">006 / PLANNED</p><h3>Measure and Improve</h3><p>Evaluate labeled cases, trace decisions, and investigate changes to agent instructions.</p></article>
+          <article class="roadmap-card" data-lab="007" data-status="planned"><p class="eyebrow">007 / PLANNED</p><h3>Voice Bid Desk</h3><p>Explore a voice interface for questions about a bid line, without hiding the review boundary.</p></article>
+          <article class="roadmap-card" data-lab="008" data-status="planned"><p class="eyebrow">008 / PLANNED</p><h3>Bid Coordinator Autopilot</h3><p>Explore a team-facing agent and the identity, access, and approval requirements around it.</p></article>
+        </div>
+        <p class="caption">This is our proposed teaching sequence, not a claim that these implementations exist. Capability prerequisites and preview labels are recorded in the <a href="https://github.com/ppiova/foundry-field-notes-labs#coming-soon">repository roadmap</a> and must be rechecked before each lab ships.</p>
+        <a class="button secondary" href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/docs/learning-roadmap.md">Read the learning roadmap <span aria-hidden="true">&#8599;</span></a>
+      </section>
+
+      <section id="boundaries" aria-labelledby="boundaries-title">
+        <div class="section-heading"><span class="section-number">05</span><div><p class="eyebrow">BEFORE GOING LIVE</p><h2 id="boundaries-title">Learn offline. Choose live deliberately.</h2></div></div>
+        <div class="limits-grid">
+          <article><h3>No hidden model calls</h3><p>These pages do not call Azure. Live app runs require your selected deployment and explicit authorization for inference charges. Hosting is a separate choice.</p></article>
+          <article><h3>No silent fallback</h3><p>A failed live call stays an error. A presenter can switch explicitly to an offline path, but must not call that a successful live retry.</p></article>
+          <article><h3>No quality shortcut</h3><p>Simulation is not AI-quality evidence. Replay is not current service availability. Synthetic evaluation is not an industry benchmark.</p></article>
+          <article><h3>No production approval claim</h3><p>The labs teach local review, not durable audit trails. Use synthetic data and keep credentials and customer content out of demonstrations.</p></article>
+        </div>
+        <div class="source-panel"><h3>Grounded in code and official references</h3><ul>
+          <li><a href="https://learn.microsoft.com/en-us/agent-framework/integrations/by-component/model-providers/microsoft-foundry?wt.mc_id=AI-MVP-5004753">Microsoft Learn: Agent Framework's Foundry provider</a><span>Code-defined agents and direct inference, distinct from service-managed agents. Accessed October 15, 2026.</span></li>
+          <li><a href="https://learn.microsoft.com/en-us/azure/foundry/foundry-models/how-to/use-foundry-models-microsoft-decision?wt.mc_id=AI-MVP-5004753">Microsoft Learn: Microsoft-Decision-1</a><span>Typed questions and per-option probabilities. Accessed October 15, 2026.</span></li>
+          <li><a href="https://learn.microsoft.com/en-us/azure/foundry/agents/overview?wt.mc_id=AI-MVP-5004753">Microsoft Learn: Foundry Agent Service overview</a><span>Background for the planned direction, not implementation evidence. Accessed October 15, 2026.</span></li>
+        </ul><p>Each lab guide distinguishes documented capabilities, sample design choices, and dated observations. This is an independent educational project, not a Microsoft product or a production-ready application.</p></div>
+        <p class="closing">The model is one part.<br><em>Understand the whole decision.</em></p>
+      </section>
+      <footer><span>Foundry Field Notes</span><p>Build it. Understand it. Make it reproducible.</p><a href="https://github.com/ppiova/foundry-field-notes-labs/blob/main/LICENSE">MIT license</a></footer>
+    </main>
+  </div>
+</body>
+</html>

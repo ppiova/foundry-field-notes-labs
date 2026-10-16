@@ -31,6 +31,8 @@ No maintainer-hosted application or shared subscription is required. Read [how M
 
 **Evidence limits:** the bundled recordings and local live evaluations are dated 2026-10-14. A hosted live run with second opinions was verified on 2026-10-15; independent clean-environment reproduction remains unverified. See [verification](docs/verification.md) for measured results, not a production-readiness claim. Operators updating an existing shared platform must also review [deployment cautions](../../docs/release-readiness.md#evidence-and-operational-notes).
 
+For a .NET audience, open the [visual presentation guide](../../docs/site/labs/002/index.html) locally: one recorded case, an interactive threshold illustration, C# entry points, and a 15-minute speaking route. It is part of the [field guide portal](../../docs/site/index.html); see [preview and publication instructions](../../docs/presentation-site.md). This static site does not run the Blazor app or call Azure.
+
 ## First success: the recorded run, no Azure
 
 Prerequisites: PowerShell 7 and the SDK pinned in [global.json](../../global.json) (.NET 11 RC1) from the [official download page](https://dotnet.microsoft.com/en-us/download/dotnet/11.0?wt.mc_id=AI-MVP-5004753). Startup reports a missing or incompatible SDK before launching.
